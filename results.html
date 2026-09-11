@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BuiltIn Job Results</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-strong: #0b1220;
+        --row: rgba(148, 163, 184, 0.06);
+        --row-hover: rgba(148, 163, 184, 0.12);
+        --border: rgba(148, 163, 184, 0.2);
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #60a5fa;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .table-wrap {
+        padding: 24px;
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      thead th {
+        background: var(--panel-strong);
+        color: var(--muted);
+        text-align: left;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+      }
+
+      tbody td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+
+      tbody tr {
+        background: var(--row);
+      }
+
+      tbody tr:hover {
+        background: var(--row-hover);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      td.title {
+        font-weight: 600;
+      }
+
+      .link-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        color: var(--text);
+        text-decoration: none;
+        background: rgba(96, 165, 250, 0.12);
+        border: 1px solid rgba(96, 165, 250, 0.33);
+        transition: transform 0.15s ease, background 0.15s ease;
+      }
+
+      .link-button:hover {
+        background: rgba(96, 165, 250, 0.18);
+        transform: translateY(-1px);
+      }
+
+      .empty {
+        padding: 24px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Company</th>
+            <th>Location</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody id="jobs-body"></tbody>
+      </table>
+    </div>
+
+    <script>
+      const SOURCE_SITES = {
+        builtincolorado: 'https://www.builtincolorado.com',
+      };
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function resolveJobUrl(job) {
+        const sourceKey = job.sourceSite || 'builtincolorado';
+        const baseUrl = SOURCE_SITES[sourceKey] || SOURCE_SITES.builtincolorado;
+        const relativeUrl = job.url || '';
+
+        if (!relativeUrl) {
+          return '#';
+        }
+
+        if (/^https?:\/\//i.test(relativeUrl)) {
+          return relativeUrl;
+        }
+
+        return new URL(relativeUrl.replace(/^\/+/, ''), `${baseUrl}/`).toString();
+      }
+
+      function renderJobs(jobs) {
+        const tbody = document.getElementById('jobs-body');
+        const sortedJobs = [...jobs].sort((a, b) => {
+          const left = (a.title || '').toLowerCase();
+          const right = (b.title || '').toLowerCase();
+          return left.localeCompare(right);
+        });
+
+        if (!sortedJobs.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="empty">No jobs found.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = sortedJobs
+          .map((job) => {
+            const title = escapeHtml(job.title || '');
+            const company = escapeHtml(job.company || '');
+            const location = escapeHtml(job.location || '');
+            const link = resolveJobUrl(job);
+
+            return `
+              <tr>
+                <td class="title">${title}</td>
+                <td>${company}</td>
+                <td>${location}</td>
+                <td>
+                  <a
+                    class="link-button"
+                    href="${link}"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    aria-label="Open ${title}"
+                    title="Open job posting"
+                  >
+                    🔗
+                  </a>
+                </td>
+              </tr>
+            `;
+          })
+          .join('');
+      }
+
+      async function loadJobs() {
+        try {
+          const response = await fetch('./data/builtin-jobs.json');
+          if (!response.ok) {
+            throw new Error(`Failed to fetch jobs: ${response.status}`);
+          }
+
+          const jobs = await response.json();
+          renderJobs(jobs);
+        } catch (error) {
+          const body = document.getElementById('jobs-body');
+          body.innerHTML = `
+            <tr>
+              <td colspan="4" class="empty">
+                Could not load data from ./data/builtin-jobs.json.<br />
+                Serve the repo with a local web server and open this page from there.
+              </td>
+            </tr>
+          `;
+          console.error(error);
+        }
+      }
+
+      loadJobs();
+    </script>
+  </body>
+</html>
