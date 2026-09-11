@@ -1,17 +1,13 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { Page, test } from '@playwright/test';
+import { BlacklistMap, isBlacklisted, loadBlacklist } from '../helpers/blacklist';
 import { JobSearchRecord } from '../helpers/record-types';
 
 const outputPath = path.resolve('data/builtin-jobs.json');
-const blacklist = {
-    title: ["Pencil Pusher"] as string[],
-    company: ["Megacorp"] as string[],
-    location: ["Metropolis"] as string[],
-};
 
-async function pageThroughEnd(page: Page, records: JobSearchRecord[]) {
-    await collectJobRecords(page, records);
+async function pageThroughEnd(page: Page, records: JobSearchRecord[], blacklist: BlacklistMap) {
+    await collectJobRecords(page, records, blacklist);
     const nextPage = await page.getByRole('link', { name: 'Go to Next Page' });
 
     if (await nextPage.count() === 0) {
@@ -19,10 +15,10 @@ async function pageThroughEnd(page: Page, records: JobSearchRecord[]) {
     }
 
     await nextPage.click();
-    await pageThroughEnd(page, records);
+    await pageThroughEnd(page, records, blacklist);
 }
 
-async function collectJobRecords(page: Page, records: JobSearchRecord[]) {
+async function collectJobRecords(page: Page, records: JobSearchRecord[], blacklist: BlacklistMap) {
     const rows = await page.locator('//div[@id="main"][@class="row"]').all();
     for (const row of rows) {
         const title = await row.getByTestId('job-card-title').textContent();
@@ -36,16 +32,10 @@ async function collectJobRecords(page: Page, records: JobSearchRecord[]) {
             url: url ?? undefined,
         };
 
-        if (!isBlacklisted(record)) {
+        if (!isBlacklisted(record, blacklist)) {
             records.push(record);
         }
     }
-}
-
-function isBlacklisted(record: JobSearchRecord) {
-    return Object.entries(blacklist).some(([field, values]) =>
-        values.some((value) => record[field as keyof typeof blacklist].toLowerCase().includes(value.toLowerCase()))
-    );
 }
 
 function recordKey(record: JobSearchRecord) {
@@ -84,8 +74,9 @@ async function saveRecords(records: JobSearchRecord[]) {
 }
 
 test("scrape builtin for last day", async ({ page }) => {
+    const blacklist = await loadBlacklist();
     await page.goto('https://www.builtincolorado.com/jobs/remote/hybrid/office/dev-engineering?search=software+engineer&daysSinceUpdated=7&state=Colorado&country=USA&allLocations=true');
     const records: JobSearchRecord[] = [];
-    await pageThroughEnd(page, records);
+    await pageThroughEnd(page, records, blacklist);
     await saveRecords(records);
 });
