@@ -118,10 +118,6 @@
     </div>
 
     <script>
-      const SOURCE_SITES = {
-        builtincolorado: 'https://www.builtincolorado.com',
-      };
-
       function escapeHtml(value) {
         return String(value ?? '')
           .replace(/&/g, '&amp;')
@@ -132,19 +128,16 @@
       }
 
       function resolveJobUrl(job) {
-        const sourceKey = job.sourceSite || 'builtincolorado';
-        const baseUrl = SOURCE_SITES[sourceKey] || SOURCE_SITES.builtincolorado;
-        const relativeUrl = job.url || '';
-
-        if (!relativeUrl) {
+        const url = job.url || '';
+        if (!url) {
           return '#';
         }
 
-        if (/^https?:\/\//i.test(relativeUrl)) {
-          return relativeUrl;
+        if (/^https?:\/\//i.test(url)) {
+          return url;
         }
 
-        return new URL(relativeUrl.replace(/^\/+/, ''), `${baseUrl}/`).toString();
+        return url;
       }
 
       function renderJobs(jobs) {
@@ -192,7 +185,7 @@
 
       async function loadJobs() {
         try {
-          const response = await fetch('./data/builtin-jobs.json');
+          const response = await fetch('./data/search-results.json');
           if (!response.ok) {
             throw new Error(`Failed to fetch jobs: ${response.status}`);
           }
@@ -204,7 +197,7 @@
           body.innerHTML = `
             <tr>
               <td colspan="4" class="empty">
-                Could not load data from ./data/builtin-jobs.json.<br />
+                Could not load data from ./data/search-results.json.<br />
                 Serve the repo with a local web server and open this page from there.
               </td>
             </tr>

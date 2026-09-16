@@ -4,7 +4,7 @@ import { Page, test } from '@playwright/test';
 import { BlacklistMap, isBlacklisted, loadBlacklist } from '../helpers/blacklist';
 import { JobSearchRecord } from '../helpers/record-types';
 
-const outputPath = path.resolve('data/linkedin-jobs.json');
+const outputPath = path.resolve('data/search-results.json');
 
 async function authenticateLinkedIn(page: Page) {
   const username = process.env.LinkedInUser;
