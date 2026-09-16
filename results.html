@@ -142,7 +142,7 @@
 
       function renderJobs(jobs) {
         const tbody = document.getElementById('jobs-body');
-        const sortedJobs = [...jobs].sort((a, b) => {
+        const sortedJobs = jobs.filter((job) => job.isRead === false).sort((a, b) => {
           const left = (a.title || '').toLowerCase();
           const right = (b.title || '').toLowerCase();
           return left.localeCompare(right);

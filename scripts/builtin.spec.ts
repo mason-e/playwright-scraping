@@ -29,7 +29,8 @@ async function collectJobRecords(page: Page, records: JobSearchRecord[], blackli
             title: title?.trim() ?? '',
             company: company?.trim() ?? '',
             location: location?.trim() ?? '',
-            url: url ?? undefined,
+            isRead: false,
+            url: url ? new URL(url, 'https://www.builtincolorado.com').toString() : undefined,
         };
 
         if (!isBlacklisted(record, blacklist)) {

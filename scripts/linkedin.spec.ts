@@ -67,6 +67,7 @@ async function collectJobRecords(page: Page, records: JobSearchRecord[], blackli
             title,
             company,
             location,
+            isRead: false,
             url: url ? new URL(url, 'https://www.linkedin.com').toString() : undefined,
         };
 
