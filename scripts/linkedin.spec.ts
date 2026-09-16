@@ -1,10 +1,17 @@
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import path from 'path';
 import { Page, test } from '@playwright/test';
-import { BlacklistMap, isBlacklisted, loadBlacklist } from '../helpers/blacklist';
+import { loadBlacklist } from '../helpers/blacklist';
 import { JobSearchRecord } from '../helpers/record-types';
+import { JobRecordSelectors, LoadAllResults, pageThroughEnd, saveRecords } from '../helpers/search-results';
 
-const outputPath = path.resolve('data/search-results.json');
+const linkedinSelectors: JobRecordSelectors = {
+  rows: '.display-flex.job-card-container',
+  title: (row) => row.locator('a.job-card-container__link'),
+  company: (row) => row.locator('.artdeco-entity-lockup__subtitle span[dir="ltr"]'),
+  location: (row) => row.locator('.artdeco-entity-lockup__caption li span[dir="ltr"]'),
+  url: (row) => row.locator('a.job-card-container__link'),
+  baseUrl: 'https://www.linkedin.com',
+  nextPage: (page) => page.getByRole('button', { name: 'View next page' }).first(),
+};
 
 async function authenticateLinkedIn(page: Page) {
   const username = process.env.LinkedInUser;
@@ -21,16 +28,19 @@ async function authenticateLinkedIn(page: Page) {
   await page.getByRole('button', { name: /^Me$/i }).waitFor({ state: 'visible', timeout: 5_000 });
 }
 
-async function pageThroughEnd(page: Page, records: JobSearchRecord[], blacklist: BlacklistMap) {
-    const jobCards = page.locator('.display-flex.job-card-container');
-    const resultsContainer = page.locator('#jobs-search-results-footer');
+/**
+ * LinkedIn uses lazy loading for job cards, so this scrolls through the cards to ensure the next
+ * set of cards loads until we get to the end of the page.
+ */
+const loadAllLinkedInResults: LoadAllResults = async (page) => {
+  const jobCards = page.locator('.display-flex.job-card-container');
+  const resultsContainer = page.locator('#jobs-search-results-footer');
 
     await jobCards.first().waitFor({ state: 'visible', timeout: 5_000 });
     await resultsContainer.waitFor({ state: 'visible', timeout: 5_000 });
 
     let loadedCount = await jobCards.count();
-    let i = 0;
-    while (i < loadedCount) {
+    for (let i = 0; i < loadedCount; i++) {
       loadedCount = await jobCards.count();
       const nextIndex = Math.min(i + 1, loadedCount - 1);
       const card = jobCards.nth(nextIndex);
@@ -39,84 +49,14 @@ async function pageThroughEnd(page: Page, records: JobSearchRecord[], blacklist:
         element.scrollIntoView({ block: 'center', inline: 'nearest' });
       });
       await page.waitForTimeout(200);
-      i++;
     }
-
-    await collectJobRecords(page, records, blacklist);
-    const nextPage = page.getByRole('button', { name: 'View next page' }).first();
-
-    if (await nextPage.count() === 0) {
-        return;
-    }
-
-    await nextPage.click();
-    await pageThroughEnd(page, records, blacklist);
-}
-
-async function collectJobRecords(page: Page, records: JobSearchRecord[], blacklist: BlacklistMap) {
-    const rows = await page.locator('.display-flex.job-card-container').all();
-
-    for (const row of rows) {
-        const titleLink = row.locator('a.job-card-container__link').first();
-        const title = (await titleLink.textContent())?.replace(/\s+/g, ' ').trim() ?? '';
-        const company = (await row.locator('.artdeco-entity-lockup__subtitle span[dir="ltr"]').first().textContent())?.replace(/\s+/g, ' ').trim() ?? '';
-        const location = (await row.locator('.artdeco-entity-lockup__caption li span[dir="ltr"]').first().textContent())?.replace(/\s+/g, ' ').trim() ?? '';
-        const url = await titleLink.getAttribute('href');
-
-        const record = {
-            title,
-            company,
-            location,
-            isRead: false,
-            url: url ? new URL(url, 'https://www.linkedin.com').toString() : undefined,
-        };
-
-        if (!isBlacklisted(record, blacklist)) {
-            records.push(record);
-        }
-    }
-}
-
-function recordKey(record: JobSearchRecord) {
-    return `${record.title}|${record.company}`.toLowerCase();
-}
-
-async function readSavedRecords() {
-    try {
-        const contents = await readFile(outputPath, 'utf8');
-        return JSON.parse(contents) as JobSearchRecord[];
-    } catch (error) {
-        if ((error as { code?: string }).code === 'ENOENT') {
-            return [];
-        }
-        throw error;
-    }
-}
-
-async function saveRecords(records: JobSearchRecord[]) {
-    const savedRecords = await readSavedRecords();
-    const existingKeys = new Set(savedRecords.map(recordKey));
-    const newRecords = records.filter((record) => {
-        const key = recordKey(record);
-        console.log(`Checking record: ${key}`);
-        if (existingKeys.has(key)) {
-            return false;
-        }
-
-        existingKeys.add(key);
-        return true;
-    });
-    const recordsToSave = [...savedRecords, ...newRecords];
-
-    await mkdir(path.dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, `${JSON.stringify(recordsToSave, null, 2)}\n`, 'utf8');
-}
+};
 
 test("scrape linkedin for last day", async ({ page }) => {
   const blacklist = await loadBlacklist();
   await authenticateLinkedIn(page);
   await page.goto('https://www.linkedin.com/jobs/search/?f_TPR=r86400&geoId=90000034&keywords=Software%20Engineer&location=Denver%20Metropolitan%20Area');
   const records: JobSearchRecord[] = [];
-  await pageThroughEnd(page, records, blacklist);
+  await pageThroughEnd(page, records, blacklist, linkedinSelectors, loadAllLinkedInResults);
   await saveRecords(records);
 });
