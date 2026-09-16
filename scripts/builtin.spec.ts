@@ -4,7 +4,7 @@ import { Page, test } from '@playwright/test';
 import { BlacklistMap, isBlacklisted, loadBlacklist } from '../helpers/blacklist';
 import { JobSearchRecord } from '../helpers/record-types';
 
-const outputPath = path.resolve('data/builtin-jobs.json');
+const outputPath = path.resolve('data/search-results.json');
 
 async function pageThroughEnd(page: Page, records: JobSearchRecord[], blacklist: BlacklistMap) {
     await collectJobRecords(page, records, blacklist);
@@ -75,7 +75,7 @@ async function saveRecords(records: JobSearchRecord[]) {
 
 test("scrape builtin for last day", async ({ page }) => {
     const blacklist = await loadBlacklist();
-    await page.goto('https://www.builtincolorado.com/jobs/remote/hybrid/office/dev-engineering?search=software+engineer&daysSinceUpdated=7&state=Colorado&country=USA&allLocations=true');
+    await page.goto('https://www.builtincolorado.com/jobs/remote/hybrid/office/dev-engineering?search=software+engineer&daysSinceUpdated=1&state=Colorado&country=USA&allLocations=true');
     const records: JobSearchRecord[] = [];
     await pageThroughEnd(page, records, blacklist);
     await saveRecords(records);
