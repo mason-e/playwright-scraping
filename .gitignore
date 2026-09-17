@@ -6,6 +6,7 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 
-# Other
+# Project Specific
 /data/
+/logs/
 todo.md
