@@ -2,11 +2,12 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { Locator, Page } from '@playwright/test';
 import { BlacklistMap, isBlacklisted } from './blacklist';
+import { LocatorContentError, LocatorNotFoundError } from './logging';
 import { JobSearchRecord } from './record-types';
 
 const outputPath = path.resolve('data/search-results.json');
 
-export type JobRecordSelectors = {
+export type JobRecordLocators = {
     rows: string;
     title: (row: Locator) => Locator;
     company: (row: Locator) => Locator;
@@ -22,22 +23,22 @@ export async function collectJobRecords(
     page: Page,
     records: JobSearchRecord[],
     blacklist: BlacklistMap,
-    selectors: JobRecordSelectors,
+    locators: JobRecordLocators,
 ) {
-    const rows = await page.locator(selectors.rows).all();
+    const rows = await page.locator(locators.rows).all();
 
     for (const row of rows) {
-        const title = await selectors.title(row).first().textContent();
-        const company = await selectors.company(row).first().textContent();
-        const location = await selectors.location(row).first().textContent();
-        const url = await selectors.url(row).first().getAttribute('href');
+        const title = await locators.title(row).first().textContent();
+        const company = await locators.company(row).first().textContent();
+        const location = await locators.location(row).first().textContent();
+        const url = await locators.url(row).first().getAttribute('href');
 
         const record = {
-            title: title?.replace(/\s+/g, ' ').trim() ?? '',
-            company: company?.replace(/\s+/g, ' ').trim() ?? '',
-            location: location?.replace(/\s+/g, ' ').trim() ?? '',
+            title: title?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
+            company: company?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
+            location: location?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
             isRead: false,
-            url: url ? new URL(url, selectors.baseUrl).toString() : undefined,
+            url: url ? new URL(url, locators.baseUrl).toString() : undefined,
         };
 
         if (!isBlacklisted(record, blacklist)) {
@@ -50,19 +51,24 @@ export async function pageThroughEnd(
     page: Page,
     records: JobSearchRecord[],
     blacklist: BlacklistMap,
-    selectors: JobRecordSelectors,
+    locators: JobRecordLocators,
     loadAllResults?: LoadAllResults,
 ) {
-    await loadAllResults?.(page);
-    await collectJobRecords(page, records, blacklist, selectors);
-    const nextPage = selectors.nextPage(page);
+    const nextPage = locators.nextPage(page);
+    const collectAndClickNext = async () => {
+        await loadAllResults?.(page);
+        await collectJobRecords(page, records, blacklist, locators);
+        await verifyRecords(records);
+        if (await nextPage.count() === 0) {
+            return;
+        }
 
-    if (await nextPage.count() === 0) {
-        return;
-    }
-
-    await nextPage.click();
-    await pageThroughEnd(page, records, blacklist, selectors, loadAllResults);
+        await nextPage.click();
+        await collectAndClickNext();
+    };
+    
+    await verifyLocators(page, locators);
+    await collectAndClickNext();
 }
 
 function recordKey(record: JobSearchRecord) {
@@ -86,7 +92,6 @@ export async function saveRecords(records: JobSearchRecord[]) {
     const existingKeys = new Set(savedRecords.map(recordKey));
     const newRecords = records.filter((record) => {
         const key = recordKey(record);
-        console.log(`Checking record: ${key}`);
         if (existingKeys.has(key)) {
             return false;
         }
@@ -98,4 +103,49 @@ export async function saveRecords(records: JobSearchRecord[]) {
 
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, `${JSON.stringify(recordsToSave, null, 2)}\n`, 'utf8');
+}
+
+export async function verifyLocators(page: Page, locators: JobRecordLocators) {
+    const rowLocator = page.locator(locators.rows);
+    if (await rowLocator.count() === 0) {
+        throw new LocatorNotFoundError('Row locator matched no elements. Row child locators are not verified.');
+    }
+
+    const row = rowLocator.first();
+    const locatorMap = [
+        ['Title', locators.title(row)],
+        ['Company', locators.company(row)],
+        ['Location', locators.location(row)],
+        ['URL', locators.url(row)],
+    ] as const;
+    const missing: string[] = [];
+
+    for (const [name, locator] of locatorMap) {
+        if (await locator.count() === 0) {
+            missing.push(name);
+        }
+    }
+
+    if (missing.length > 0) {
+        throw new LocatorNotFoundError(`Missing locator(s): ${missing.join(', ')}`);
+    }
+}
+
+export async function verifyRecords(records: JobSearchRecord[]) {
+    const unknownFields: string[] = [];
+    if (records.every((record) => record.title === 'UNKNOWN')) {
+        unknownFields.push('Title');
+    }
+    if (records.every((record) => record.company === 'UNKNOWN')) {
+        unknownFields.push('Company');
+    }
+    if (records.every((record) => record.location === 'UNKNOWN')) {
+        unknownFields.push('Location');
+    }
+    if (records.every((record) => !record.url)) {
+        unknownFields.push('URL');
+    }
+    if (unknownFields.length > 0) {
+        throw new LocatorContentError(`Every ${unknownFields.join(', ')} failed to return a value.`);
+    }
 }

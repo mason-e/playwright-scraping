@@ -1,9 +1,10 @@
 import { Page, test } from '@playwright/test';
 import { loadBlacklist } from '../helpers/blacklist';
+import { logTestResult } from '../helpers/logging';
 import { JobSearchRecord } from '../helpers/record-types';
-import { JobRecordSelectors, LoadAllResults, pageThroughEnd, saveRecords } from '../helpers/search-results';
+import { JobRecordLocators, LoadAllResults, pageThroughEnd, saveRecords } from '../helpers/search-results';
 
-const linkedinSelectors: JobRecordSelectors = {
+const linkedInLocators: JobRecordLocators = {
   rows: '.display-flex.job-card-container',
   title: (row) => row.locator('a.job-card-container__link'),
   company: (row) => row.locator('.artdeco-entity-lockup__subtitle span[dir="ltr"]'),
@@ -36,27 +37,44 @@ const loadAllLinkedInResults: LoadAllResults = async (page) => {
   const jobCards = page.locator('.display-flex.job-card-container');
   const resultsContainer = page.locator('#jobs-search-results-footer');
 
-    await jobCards.first().waitFor({ state: 'visible', timeout: 5_000 });
-    await resultsContainer.waitFor({ state: 'visible', timeout: 5_000 });
+  await jobCards.first().waitFor({ state: 'visible', timeout: 5_000 });
+  await resultsContainer.waitFor({ state: 'visible', timeout: 5_000 });
 
-    let loadedCount = await jobCards.count();
-    for (let i = 0; i < loadedCount; i++) {
-      loadedCount = await jobCards.count();
-      const nextIndex = Math.min(i + 1, loadedCount - 1);
-      const card = jobCards.nth(nextIndex);
+  let loadedCount = await jobCards.count();
+  for (let i = 0; i < loadedCount; i++) {
+    loadedCount = await jobCards.count();
+    const nextIndex = Math.min(i + 1, loadedCount - 1);
+    const card = jobCards.nth(nextIndex);
 
-      await card.evaluate((element) => {
-        element.scrollIntoView({ block: 'center', inline: 'nearest' });
-      });
-      await page.waitForTimeout(200);
-    }
+    await card.evaluate((element) => {
+      element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    });
+    await page.waitForTimeout(200);
+  }
 };
+
+const records: JobSearchRecord[] = [];
+
+test.afterEach(async ({ }, testInfo) => logTestResult(testInfo, records));
 
 test("scrape linkedin for last day", async ({ page }) => {
   const blacklist = await loadBlacklist();
   await authenticateLinkedIn(page);
   await page.goto('https://www.linkedin.com/jobs/search/?f_TPR=r86400&geoId=90000034&keywords=Software%20Engineer&location=Denver%20Metropolitan%20Area');
-  const records: JobSearchRecord[] = [];
-  await pageThroughEnd(page, records, blacklist, linkedinSelectors, loadAllLinkedInResults);
-  await saveRecords(records);
+  let scrapeError: unknown;
+
+  try {
+    await pageThroughEnd(page, records, blacklist, linkedInLocators, loadAllLinkedInResults);
+  }
+  catch (error) {
+    scrapeError = error;
+  }
+
+  if (records.length > 0) {
+    await saveRecords(records);
+  }
+
+  if (scrapeError) {
+    throw scrapeError;
+  }
 });
