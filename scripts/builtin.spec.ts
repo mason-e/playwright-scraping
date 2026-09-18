@@ -15,8 +15,9 @@ const builtInLocators: JobRecordLocators = {
 };
 
 const records: JobSearchRecord[] = [];
+const counts: { total: number; filtered: number; unique: number } = { total: 0, filtered: 0, unique: 0 };
 
-test.afterEach(async ({ }, testInfo) => logTestResult(testInfo, records));
+test.afterEach(async ({ }, testInfo) => logTestResult(testInfo, counts));
 
 test("scrape builtin for last day", async ({ page }) => {
   const blacklist = await loadBlacklist();
@@ -24,14 +25,16 @@ test("scrape builtin for last day", async ({ page }) => {
   let scrapeError: unknown;
 
   try {
-    await pageThroughEnd(page, records, blacklist, builtInLocators);
+    counts.total = await pageThroughEnd(page, records, blacklist, builtInLocators);
   }
   catch (error) {
     scrapeError = error;
   }
 
-  if (records.length > 0) {
-    await saveRecords(records);
+  counts.filtered = records.length;
+
+  if (counts.filtered > 0) {
+    counts.unique = await saveRecords(records);
   }
 
   if (scrapeError) {

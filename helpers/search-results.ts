@@ -45,6 +45,8 @@ export async function collectJobRecords(
             records.push(record);
         }
     }
+
+    return rows.length;
 }
 
 export async function pageThroughEnd(
@@ -55,9 +57,10 @@ export async function pageThroughEnd(
     loadAllResults?: LoadAllResults,
 ) {
     const nextPage = locators.nextPage(page);
+    let count = 0;
     const collectAndClickNext = async () => {
         await loadAllResults?.(page);
-        await collectJobRecords(page, records, blacklist, locators);
+        count += await collectJobRecords(page, records, blacklist, locators);
         await verifyRecords(records);
         if (await nextPage.count() === 0) {
             return;
@@ -69,6 +72,7 @@ export async function pageThroughEnd(
     
     await verifyLocators(page, locators);
     await collectAndClickNext();
+    return count;
 }
 
 function recordKey(record: JobSearchRecord) {
@@ -103,6 +107,7 @@ export async function saveRecords(records: JobSearchRecord[]) {
 
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, `${JSON.stringify(recordsToSave, null, 2)}\n`, 'utf8');
+    return newRecords.length;
 }
 
 export async function verifyLocators(page: Page, locators: JobRecordLocators) {
