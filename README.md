@@ -4,7 +4,7 @@ An evolution on my former [job scraper](https://github.com/mason-e/job-scraping)
 
 ## Setup Steps
 
-- Run `npx playwright install-deps` and `npx playwright install` to initialize the repo after cloning.
+- Run `npm install`, `npx playwright install-deps` and `npx playwright install` to initialize the repo after cloning.
 
 ### Windows Specific
 
