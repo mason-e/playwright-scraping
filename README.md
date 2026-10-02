@@ -12,8 +12,8 @@ An evolution on my former [job scraper](https://github.com/mason-e/job-scraping)
 
 ## Display Results
 
-After running the scripts, run the web page as a local server to get a formatted readout. I used Python for this. Python install/setup is out of scope for this README since there are plenty of possible variations.
+After running the scripts, start the local results server:
 
-`{python} -m http.server 8000` where {python} = `python3`, `python`, or `py`. Again, config can vary.
+`npm start`
 
-Then open http://localhost:8000/results.html in a browser.
+Then open http://localhost:3000. The server provides the results in a clean format with links.

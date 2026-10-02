@@ -2,7 +2,9 @@
   "name": "playwright-scraping",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "start": "node pages/server.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
