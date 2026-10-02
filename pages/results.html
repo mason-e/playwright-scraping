@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BuiltIn Job Results</title>
+    <title>Job Search Results</title>
     <style>
       :root {
         color-scheme: dark;
@@ -36,8 +36,13 @@
 
       .toolbar {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
         padding: 24px 24px 0;
+      }
+
+      .toolbar-actions {
+        display: flex;
+        gap: 8px;
       }
 
       .filter-button {
@@ -51,6 +56,18 @@
 
       .filter-button:hover {
         background: var(--row-hover);
+      }
+
+      .select-checkbox {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--accent);
+      }
+
+      th.select-column,
+      td.select-column {
+        width: 48px;
+        text-align: center;
       }
 
       table {
@@ -134,12 +151,16 @@
   </head>
   <body>
     <div class="toolbar">
-      <button id="filter-button" class="filter-button" type="button">Show All</button>
+      <button id="mark-read-button" class="filter-button" type="button">Mark as Read</button>
+      <div class="toolbar-actions">
+        <button id="filter-button" class="filter-button" type="button">Show All</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            <th class="select-column"><input id="select-all" class="select-checkbox" type="checkbox" aria-label="Select all visible jobs" /></th>
             <th>Title</th>
             <th>Company</th>
             <th>Location</th>
@@ -153,6 +174,7 @@
     <script>
       let jobs = [];
       let showAll = false;
+      const selectedJobs = new Set();
 
       const SITE_FAVICONS = {
         'builtincolorado.com': 'https://static.builtin.com/dist/images/favicon.png',
@@ -190,17 +212,33 @@
         }
       }
 
-      function renderJobs(jobs) {
-        const tbody = document.getElementById('jobs-body');
+      function jobKey(job) {
+        return `${job.title || ''}|${job.company || ''}|${job.url || ''}`;
+      }
+
+      function getVisibleJobs() {
         const visibleJobs = showAll ? jobs : jobs.filter((job) => job.isRead === false);
-        const sortedJobs = [...visibleJobs].sort((a, b) => {
+        return [...visibleJobs].sort((a, b) => {
           const left = (a.title || '').toLowerCase();
           const right = (b.title || '').toLowerCase();
           return left.localeCompare(right);
         });
+      }
+
+      function updateSelectAll(sortedJobs) {
+        const selectAll = document.getElementById('select-all');
+        const selectedCount = sortedJobs.filter((job) => selectedJobs.has(jobKey(job))).length;
+        selectAll.checked = sortedJobs.length > 0 && selectedCount === sortedJobs.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < sortedJobs.length;
+      }
+
+      function renderJobs(jobs) {
+        const tbody = document.getElementById('jobs-body');
+        const sortedJobs = getVisibleJobs();
 
         if (!sortedJobs.length) {
-          tbody.innerHTML = '<tr><td colspan="4" class="empty">No jobs found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" class="empty">No jobs found.</td></tr>';
+          updateSelectAll(sortedJobs);
           return;
         }
 
@@ -212,9 +250,12 @@
             const link = resolveJobUrl(job);
             const favicon = resolveFaviconUrl(link);
             const rowClass = job.isRead ? 'read' : '';
+            const key = jobKey(job);
+            const checked = selectedJobs.has(key) ? ' checked' : '';
 
             return `
               <tr class="${rowClass}">
+                <td class="select-column"><input class="select-checkbox job-checkbox" type="checkbox" data-job-key="${escapeHtml(key)}"${checked} aria-label="Select ${title}" /></td>
                 <td class="title">${title}</td>
                 <td>${company}</td>
                 <td>${location}</td>
@@ -234,11 +275,70 @@
             `;
           })
           .join('');
+
+        tbody.querySelectorAll('.job-checkbox').forEach((checkbox) => {
+          checkbox.addEventListener('change', (event) => {
+            const target = event.target;
+            if (target.checked) {
+              selectedJobs.add(target.dataset.jobKey);
+            } else {
+              selectedJobs.delete(target.dataset.jobKey);
+            }
+            updateSelectAll(sortedJobs);
+          });
+        });
+        updateSelectAll(sortedJobs);
       }
+
+      document.getElementById('select-all').addEventListener('change', (event) => {
+        const checked = event.target.checked;
+        getVisibleJobs().forEach((job) => {
+          const key = jobKey(job);
+          if (checked) {
+            selectedJobs.add(key);
+          } else {
+            selectedJobs.delete(key);
+          }
+        });
+        renderJobs(jobs);
+      });
+
+      document.getElementById('mark-read-button').addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        const selectedKeys = [...selectedJobs];
+        if (!selectedKeys.length) {
+          return;
+        }
+
+        button.disabled = true;
+        try {
+          const response = await fetch('/api/jobs/read', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys: selectedKeys }),
+          });
+          if (!response.ok) {
+            throw new Error(`Failed to mark jobs as read: ${response.status}`);
+          }
+
+          jobs.forEach((job) => {
+            if (selectedJobs.has(jobKey(job))) {
+              job.isRead = true;
+              selectedJobs.delete(jobKey(job));
+            }
+          });
+          renderJobs(jobs);
+        } catch (error) {
+          console.error(error);
+          window.alert('Could not save read status. Please try again.');
+        } finally {
+          button.disabled = false;
+        }
+      });
 
       async function loadJobs() {
         try {
-          const response = await fetch('./data/search-results.json');
+          const response = await fetch('/api/jobs');
           if (!response.ok) {
             throw new Error(`Failed to fetch jobs: ${response.status}`);
           }
@@ -249,9 +349,8 @@
           const body = document.getElementById('jobs-body');
           body.innerHTML = `
             <tr>
-              <td colspan="4" class="empty">
-                Could not load data from ./data/search-results.json.<br />
-                Serve the repo with a local web server and open this page from there.
+              <td colspan="5" class="empty">
+                Could not load jobs from the local server API.
               </td>
             </tr>
           `;
