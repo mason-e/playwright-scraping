@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BuiltIn Job Results</title>
+    <title>Job Search Results</title>
     <style>
       :root {
         color-scheme: dark;
@@ -303,19 +303,42 @@
         renderJobs(jobs);
       });
 
-      document.getElementById('mark-read-button').addEventListener('click', () => {
-        jobs.forEach((job) => {
-          if (selectedJobs.has(jobKey(job))) {
-            job.isRead = true;
-            selectedJobs.delete(jobKey(job));
+      document.getElementById('mark-read-button').addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        const selectedKeys = [...selectedJobs];
+        if (!selectedKeys.length) {
+          return;
+        }
+
+        button.disabled = true;
+        try {
+          const response = await fetch('/api/jobs/read', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys: selectedKeys }),
+          });
+          if (!response.ok) {
+            throw new Error(`Failed to mark jobs as read: ${response.status}`);
           }
-        });
-        renderJobs(jobs);
+
+          jobs.forEach((job) => {
+            if (selectedJobs.has(jobKey(job))) {
+              job.isRead = true;
+              selectedJobs.delete(jobKey(job));
+            }
+          });
+          renderJobs(jobs);
+        } catch (error) {
+          console.error(error);
+          window.alert('Could not save read status. Please try again.');
+        } finally {
+          button.disabled = false;
+        }
       });
 
       async function loadJobs() {
         try {
-          const response = await fetch('./data/search-results.json');
+          const response = await fetch('/api/jobs');
           if (!response.ok) {
             throw new Error(`Failed to fetch jobs: ${response.status}`);
           }
@@ -327,8 +350,7 @@
           body.innerHTML = `
             <tr>
               <td colspan="5" class="empty">
-                Could not load data from ./data/search-results.json.<br />
-                Serve the repo with a local web server and open this page from there.
+                Could not load jobs from the local server API.
               </td>
             </tr>
           `;
