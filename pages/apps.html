@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Applications</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <nav class="page-nav" aria-label="Main navigation">
+      <a href="/results.html">Search Results</a>
+      <a href="/apps.html" aria-current="page">Applications</a>
+    </nav>
+    <header class="page-heading">
+      <div>
+        <h1>Applications</h1>
+        <p>Submitted applications</p>
+      </div>
+      <span id="application-count" class="summary-count" aria-live="polite"></span>
+    </header>
+    <main class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Applied</th>
+            <th>Employer</th>
+            <th>Position</th>
+            <th>Method</th>
+            <th>Location</th>
+            <th>Interviewed</th>
+            <th>Advanced</th>
+          </tr>
+        </thead>
+        <tbody id="applications-body">
+          <tr><td colspan="7" class="empty">Loading applications...</td></tr>
+        </tbody>
+      </table>
+    </main>
+
+    <script>
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function isTrue(value) {
+        return value === true || String(value).toLowerCase() === 'true';
+      }
+
+      function formatDate(value) {
+        const date = new Date(`${value}T00:00:00`);
+        return Number.isNaN(date.getTime())
+          ? escapeHtml(value)
+          : new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
+      }
+
+      function statusCell(value) {
+        const affirmative = isTrue(value);
+        return `<span class="status-value ${affirmative ? 'status-yes' : 'status-no'}">${affirmative ? 'Yes' : 'No'}</span>`;
+      }
+
+      async function loadApplications() {
+        const body = document.getElementById('applications-body');
+        try {
+          const response = await fetch('/api/applications');
+          if (!response.ok) {
+            throw new Error(`Failed to load applications: ${response.status}`);
+          }
+
+          const applications = await response.json();
+          if (!Array.isArray(applications)) {
+            throw new Error('Application data must be a JSON array');
+          }
+
+          applications.sort((left, right) => String(right.appDate || '').localeCompare(String(left.appDate || '')));
+          document.getElementById('application-count').textContent = `${applications.length} applications`;
+
+          if (!applications.length) {
+            body.innerHTML = '<tr><td colspan="7" class="empty">No applications found.</td></tr>';
+            return;
+          }
+
+          body.innerHTML = applications.map((application) => `
+            <tr>
+              <td>${formatDate(application.appDate || '')}</td>
+              <td class="title">${escapeHtml(application.title || '')}</td>
+              <td>${escapeHtml(application.company || '')}</td>
+              <td>${escapeHtml(application.appMethod || '')}</td>
+              <td>${escapeHtml(application.location || '')}</td>
+              <td>${statusCell(application.interviewed)}</td>
+              <td>${statusCell(application.advanced)}</td>
+            </tr>
+          `).join('');
+        } catch (error) {
+          body.innerHTML = '<tr><td colspan="7" class="empty">Could not load application data from the local server.</td></tr>';
+          console.error(error);
+        }
+      }
+
+      loadApplications();
+    </script>
+  </body>
+</html>

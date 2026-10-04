@@ -4,7 +4,10 @@ const path = require('node:path');
 
 const port = Number(process.env.PORT || 3000);
 const resultsPath = path.join(__dirname, '..', 'data', 'search-results.json');
+const applicationsPath = path.join(__dirname, '..', 'data', 'jobs-applied.json');
 const pagePath = path.join(__dirname, 'results.html');
+const applicationsPagePath = path.join(__dirname, 'apps.html');
+const stylesheetPath = path.join(__dirname, 'styles.css');
 
 function sendJson(response, status, data) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -47,6 +50,20 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === '/apps.html' && request.method === 'GET') {
+      const page = await fs.readFile(applicationsPagePath);
+      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      response.end(page);
+      return;
+    }
+
+    if (url.pathname === '/styles.css' && request.method === 'GET') {
+      const stylesheet = await fs.readFile(stylesheetPath);
+      response.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8' });
+      response.end(stylesheet);
+      return;
+    }
+
     if (url.pathname === '/api/jobs') {
       if (request.method !== 'GET') {
         sendJson(response, 405, { error: 'Method not allowed' });
@@ -55,6 +72,20 @@ const server = http.createServer(async (request, response) => {
 
       const jobs = JSON.parse(await fs.readFile(resultsPath, 'utf8'));
       sendJson(response, 200, jobs);
+      return;
+    }
+
+    if (url.pathname === '/api/applications') {
+      if (request.method !== 'GET') {
+        sendJson(response, 405, { error: 'Method not allowed' });
+        return;
+      }
+
+      const applications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
+      if (!Array.isArray(applications)) {
+        throw new Error('Applied jobs must be a JSON array');
+      }
+      sendJson(response, 200, applications);
       return;
     }
 
