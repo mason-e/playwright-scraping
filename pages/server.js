@@ -171,10 +171,44 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
-      const applications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
+      let applications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
       if (!Array.isArray(applications)) {
         throw new Error('Applied jobs must be a JSON array');
       }
+
+      const searchFields = ['company', 'title', 'appMethod', 'location', 'contact'];
+      const statusFields = ['interviewed', 'advanced'];
+      const requestedField = url.searchParams.get('field');
+      if (requestedField && !searchFields.includes(requestedField)) {
+        sendJson(response, 400, { error: 'Unsupported application search field' });
+        return;
+      }
+
+      const query = (url.searchParams.get('q') || '').trim().toLowerCase();
+      const textFilters = searchFields
+        .map((field) => [field, (url.searchParams.get(field) || '').trim().toLowerCase()])
+        .filter(([, value]) => value);
+      const statusFilters = statusFields
+        .filter((field) => url.searchParams.has(field))
+        .map((field) => [field, url.searchParams.get(field).toLowerCase()]);
+
+      if (statusFilters.some(([, value]) => value !== 'true' && value !== 'false')) {
+        sendJson(response, 400, { error: 'Status filters must be true or false' });
+        return;
+      }
+
+      applications = applications.filter((application) => {
+        const queryMatches = !query || (requestedField
+          ? String(application[requestedField] ?? '').toLowerCase().includes(query)
+          : searchFields.some((field) => String(application[field] ?? '').toLowerCase().includes(query)));
+        const textFiltersMatch = textFilters.every(([field, value]) =>
+          String(application[field] ?? '').toLowerCase().includes(value)
+        );
+        const statusFiltersMatch = statusFilters.every(([field, value]) =>
+          String(application[field]).toLowerCase() === value
+        );
+        return queryMatches && textFiltersMatch && statusFiltersMatch;
+      });
       sendJson(response, 200, applications);
       return;
     }
