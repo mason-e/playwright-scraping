@@ -27,14 +27,17 @@
             <th>Location</th>
             <th>Link</th>
             <th>Application</th>
+            <th>Blacklist</th>
           </tr>
         </thead>
         <tbody id="jobs-body"></tbody>
       </table>
     </div>
     <application-modal id="application-modal"></application-modal>
+    <blacklist-modal id="blacklist-modal"></blacklist-modal>
 
     <script src="/application-modal.js" defer></script>
+    <script src="/blacklist-modal.js" defer></script>
     <script>
       let jobs = [];
       let showAll = false;
@@ -108,7 +111,7 @@
         const sortedJobs = getVisibleJobs();
 
         if (!sortedJobs.length) {
-          tbody.innerHTML = '<tr><td colspan="6" class="empty">No jobs found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="empty">No jobs found.</td></tr>';
           updateSelectAll(sortedJobs);
           return;
         }
@@ -145,6 +148,9 @@
                 <td class="application-action">
                   <button class="filter-button application-add-button" type="button" data-job-key="${escapeHtml(key)}" aria-label="Add application for ${title}">Add</button>
                 </td>
+                <td class="application-action">
+                  <button class="filter-button blacklist-add-button" type="button" data-job-key="${escapeHtml(key)}" aria-label="Add ${title} to blacklist">Add</button>
+                </td>
               </tr>
             `;
           })
@@ -177,6 +183,20 @@
               contact: '',
               interviewed: false,
               advanced: false,
+            });
+          });
+        });
+        tbody.querySelectorAll('.blacklist-add-button').forEach((button) => {
+          button.addEventListener('click', () => {
+            const job = jobs.find((item) => jobKey(item) === button.dataset.jobKey);
+            if (!job) {
+              return;
+            }
+
+            document.getElementById('blacklist-modal').show({
+              company: job.company || '',
+              title: job.title || '',
+              location: job.location || '',
             });
           });
         });
@@ -242,7 +262,7 @@
           const body = document.getElementById('jobs-body');
           body.innerHTML = `
             <tr>
-              <td colspan="6" class="empty">
+              <td colspan="7" class="empty">
                 Could not load jobs from the local server API.
               </td>
             </tr>
