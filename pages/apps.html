@@ -26,13 +26,65 @@
         <thead>
           <tr>
             <th>Applied</th>
-            <th>Employer</th>
-            <th>Position</th>
-            <th>Method</th>
-            <th>Location</th>
-            <th>Contact</th>
-            <th>Interviewed</th>
-            <th>Advanced</th>
+            <th data-filter-column="company">
+              <div class="column-heading">
+                <span>Company</span>
+                <button class="column-filter-toggle" type="button" data-open-filter="company" aria-label="Filter Company" title="Filter Company" aria-expanded="false">
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg>
+                </button>
+              </div>
+              <div class="column-filter-popover" data-filter-popover="company" hidden>
+                <form data-filter-form="company">
+                  <label>Company<input type="search" data-filter-value="company" placeholder="Contains..." /></label>
+                  <div class="filter-popover-actions">
+                    <button class="filter-icon-button" type="button" data-dismiss-filter="company" aria-label="Dismiss Company filter" title="Dismiss"><span aria-hidden="true">&times;</span></button>
+                    <button class="filter-icon-button apply" type="submit" aria-label="Apply Company filter" title="Apply"><span aria-hidden="true">&#10003;</span></button>
+                  </div>
+                </form>
+              </div>
+            </th>
+            <th data-filter-column="title">
+              <div class="column-heading">
+                <span>Title</span>
+                <button class="column-filter-toggle" type="button" data-open-filter="title" aria-label="Filter Title" title="Filter Title" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg></button>
+              </div>
+              <div class="column-filter-popover" data-filter-popover="title" hidden>
+                <form data-filter-form="title">
+                  <label>Title<input type="search" data-filter-value="title" placeholder="Contains..." /></label>
+                  <div class="filter-popover-actions"><button class="filter-icon-button" type="button" data-dismiss-filter="title" aria-label="Dismiss Title filter" title="Dismiss"><span aria-hidden="true">&times;</span></button><button class="filter-icon-button apply" type="submit" aria-label="Apply Title filter" title="Apply"><span aria-hidden="true">&#10003;</span></button></div>
+                </form>
+              </div>
+            </th>
+            <th data-filter-column="appMethod">
+              <div class="column-heading"><span>Method</span><button class="column-filter-toggle" type="button" data-open-filter="appMethod" aria-label="Filter Method" title="Filter Method" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg></button></div>
+              <div class="column-filter-popover" data-filter-popover="appMethod" hidden>
+                <form data-filter-form="appMethod"><label>Method<input type="search" data-filter-value="appMethod" placeholder="Contains..." /></label><div class="filter-popover-actions"><button class="filter-icon-button" type="button" data-dismiss-filter="appMethod" aria-label="Dismiss Method filter" title="Dismiss"><span aria-hidden="true">&times;</span></button><button class="filter-icon-button apply" type="submit" aria-label="Apply Method filter" title="Apply"><span aria-hidden="true">&#10003;</span></button></div></form>
+              </div>
+            </th>
+            <th data-filter-column="location">
+              <div class="column-heading"><span>Location</span><button class="column-filter-toggle" type="button" data-open-filter="location" aria-label="Filter Location" title="Filter Location" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg></button></div>
+              <div class="column-filter-popover" data-filter-popover="location" hidden>
+                <form data-filter-form="location"><label>Location<input type="search" data-filter-value="location" placeholder="Contains..." /></label><div class="filter-popover-actions"><button class="filter-icon-button" type="button" data-dismiss-filter="location" aria-label="Dismiss Location filter" title="Dismiss"><span aria-hidden="true">&times;</span></button><button class="filter-icon-button apply" type="submit" aria-label="Apply Location filter" title="Apply"><span aria-hidden="true">&#10003;</span></button></div></form>
+              </div>
+            </th>
+            <th data-filter-column="contact" class="filter-align-right">
+              <div class="column-heading"><span>Contact</span><button class="column-filter-toggle" type="button" data-open-filter="contact" aria-label="Filter Contact" title="Filter Contact" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg></button></div>
+              <div class="column-filter-popover align-right" data-filter-popover="contact" hidden>
+                <form data-filter-form="contact"><label>Contact<input type="search" data-filter-value="contact" placeholder="Contains..." /></label><div class="filter-popover-actions"><button class="filter-icon-button" type="button" data-dismiss-filter="contact" aria-label="Dismiss Contact filter" title="Dismiss"><span aria-hidden="true">&times;</span></button><button class="filter-icon-button apply" type="submit" aria-label="Apply Contact filter" title="Apply"><span aria-hidden="true">&#10003;</span></button></div></form>
+              </div>
+            </th>
+            <th data-filter-column="interviewed" class="filter-align-right">
+              <div class="column-heading"><span>Interviewed</span><button class="column-filter-toggle" type="button" data-open-filter="interviewed" aria-label="Filter Interviewed" title="Filter Interviewed" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg></button></div>
+              <div class="column-filter-popover align-right" data-filter-popover="interviewed" hidden>
+                <form data-filter-form="interviewed"><label>Interviewed<select data-filter-value="interviewed"><option value="">Any</option><option value="true">Yes</option><option value="false">No</option></select></label><div class="filter-popover-actions"><button class="filter-icon-button" type="button" data-dismiss-filter="interviewed" aria-label="Dismiss Interviewed filter" title="Dismiss"><span aria-hidden="true">&times;</span></button><button class="filter-icon-button apply" type="submit" aria-label="Apply Interviewed filter" title="Apply"><span aria-hidden="true">&#10003;</span></button></div></form>
+              </div>
+            </th>
+            <th data-filter-column="advanced" class="filter-align-right">
+              <div class="column-heading"><span>Advanced</span><button class="column-filter-toggle" type="button" data-open-filter="advanced" aria-label="Filter Advanced" title="Filter Advanced" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg></button></div>
+              <div class="column-filter-popover align-right" data-filter-popover="advanced" hidden>
+                <form data-filter-form="advanced"><label>Advanced<select data-filter-value="advanced"><option value="">Any</option><option value="true">Yes</option><option value="false">No</option></select></label><div class="filter-popover-actions"><button class="filter-icon-button" type="button" data-dismiss-filter="advanced" aria-label="Dismiss Advanced filter" title="Dismiss"><span aria-hidden="true">&times;</span></button><button class="filter-icon-button apply" type="submit" aria-label="Apply Advanced filter" title="Apply"><span aria-hidden="true">&#10003;</span></button></div></form>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody id="applications-body">
@@ -69,10 +121,65 @@
         return `<span class="status-value ${affirmative ? 'status-yes' : 'status-no'}">${affirmative ? 'Yes' : 'No'}</span>`;
       }
 
+      const activeFilters = {};
+
+      function hasActiveFilters() {
+        return Object.values(activeFilters).some(Boolean);
+      }
+
+      function closeFilterPopovers() {
+        document.querySelectorAll('[data-filter-popover]').forEach((popover) => {
+          popover.hidden = true;
+          const column = popover.closest('[data-filter-column]');
+          column.classList.remove('filter-open');
+          column.querySelector('[data-open-filter]').setAttribute('aria-expanded', 'false');
+        });
+      }
+
+      function clearFilter(field) {
+        const hadActiveFilter = Object.prototype.hasOwnProperty.call(activeFilters, field);
+        delete activeFilters[field];
+        document.querySelector(`[data-filter-value="${field}"]`).value = '';
+        closeFilterPopovers();
+        updateFilterButtons();
+        if (hadActiveFilter) {
+          loadApplications();
+        }
+      }
+
+      function openFilterPopover(field, toggle) {
+        const popover = document.querySelector(`[data-filter-popover="${field}"]`);
+        if (!popover.hidden) {
+          closeFilterPopovers();
+          return;
+        }
+
+        closeFilterPopovers();
+        const control = popover.querySelector('[data-filter-value]');
+        control.value = activeFilters[field] || '';
+        popover.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+        popover.closest('[data-filter-column]').classList.add('filter-open');
+        control.focus();
+      }
+
+      function updateFilterButtons() {
+        document.querySelectorAll('[data-open-filter]').forEach((button) => {
+          button.classList.toggle('is-active', Boolean(activeFilters[button.dataset.openFilter]));
+        });
+      }
+
       async function loadApplications() {
         const body = document.getElementById('applications-body');
         try {
-          const response = await fetch('/api/applications');
+          const query = new URLSearchParams();
+          for (const [field, value] of Object.entries(activeFilters)) {
+            if (value) {
+              query.set(field, value);
+            }
+          }
+          const queryString = query.toString();
+          const response = await fetch(`/api/applications${queryString ? `?${queryString}` : ''}`);
           if (!response.ok) {
             throw new Error(`Failed to load applications: ${response.status}`);
           }
@@ -83,18 +190,20 @@
           }
 
           applications.sort((left, right) => String(right.appDate || '').localeCompare(String(left.appDate || '')));
-          document.getElementById('application-count').textContent = `${applications.length} applications`;
+          document.getElementById('application-count').textContent = hasActiveFilters()
+            ? `${applications.length} matches`
+            : `${applications.length} applications`;
 
           if (!applications.length) {
-            body.innerHTML = '<tr><td colspan="8" class="empty">No applications found.</td></tr>';
+            body.innerHTML = `<tr><td colspan="8" class="empty">${hasActiveFilters() ? 'No matching applications found.' : 'No applications found.'}</td></tr>`;
             return;
           }
 
           body.innerHTML = applications.map((application) => `
             <tr>
               <td>${formatDate(application.appDate || '')}</td>
-              <td class="title">${escapeHtml(application.title || '')}</td>
               <td>${escapeHtml(application.company || '')}</td>
+              <td class="title">${escapeHtml(application.title || '')}</td>
               <td>${escapeHtml(application.appMethod || '')}</td>
               <td>${escapeHtml(application.location || '')}</td>
               <td>${escapeHtml(application.contact || '')}</td>
@@ -109,11 +218,43 @@
       }
 
       const applicationModal = document.getElementById('application-modal');
+      document.querySelectorAll('[data-open-filter]').forEach((toggle) => {
+        toggle.addEventListener('click', () => openFilterPopover(toggle.dataset.openFilter, toggle));
+      });
+      document.querySelectorAll('[data-filter-form]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+          event.preventDefault();
+          const field = form.dataset.filterForm;
+          const value = form.querySelector('[data-filter-value]').value.trim();
+          if (value) {
+            activeFilters[field] = value;
+          } else {
+            delete activeFilters[field];
+          }
+          closeFilterPopovers();
+          updateFilterButtons();
+          loadApplications();
+        });
+      });
+      document.querySelectorAll('[data-dismiss-filter]').forEach((button) => {
+        button.addEventListener('click', () => clearFilter(button.dataset.dismissFilter));
+      });
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('[data-filter-column]')) {
+          closeFilterPopovers();
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeFilterPopovers();
+        }
+      });
       document.getElementById('add-application-button').addEventListener('click', () => {
         applicationModal.show();
       });
-      applicationModal.addEventListener('application-saved', loadApplications);
+      applicationModal.addEventListener('application-saved', () => loadApplications());
 
+      updateFilterButtons();
       loadApplications();
     </script>
   </body>
