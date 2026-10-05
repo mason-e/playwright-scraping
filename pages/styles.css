@@ -61,6 +61,12 @@ body {
   white-space: nowrap;
 }
 
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .table-wrap {
   padding: 24px;
   overflow-x: auto;
@@ -155,6 +161,10 @@ td.title {
   font-weight: 600;
 }
 
+td.application-action {
+  white-space: nowrap;
+}
+
 .link-button {
   display: inline-flex;
   align-items: center;
@@ -214,6 +224,10 @@ td.title {
   .page-heading {
     align-items: start;
     flex-direction: column;
+  }
+
+  .page-actions {
+    flex-wrap: wrap;
   }
 
   .table-wrap {

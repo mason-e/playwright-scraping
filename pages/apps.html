@@ -16,7 +16,10 @@
         <h1>Applications</h1>
         <p>Submitted applications</p>
       </div>
-      <span id="application-count" class="summary-count" aria-live="polite"></span>
+      <div class="page-actions">
+        <span id="application-count" class="summary-count" aria-live="polite"></span>
+        <button id="add-application-button" class="filter-button" type="button">Add Application</button>
+      </div>
     </header>
     <main class="table-wrap">
       <table>
@@ -27,16 +30,19 @@
             <th>Position</th>
             <th>Method</th>
             <th>Location</th>
+            <th>Contact</th>
             <th>Interviewed</th>
             <th>Advanced</th>
           </tr>
         </thead>
         <tbody id="applications-body">
-          <tr><td colspan="7" class="empty">Loading applications...</td></tr>
+          <tr><td colspan="8" class="empty">Loading applications...</td></tr>
         </tbody>
       </table>
     </main>
+    <application-modal id="application-modal"></application-modal>
 
+    <script src="/application-modal.js" defer></script>
     <script>
       function escapeHtml(value) {
         return String(value ?? '')
@@ -80,7 +86,7 @@
           document.getElementById('application-count').textContent = `${applications.length} applications`;
 
           if (!applications.length) {
-            body.innerHTML = '<tr><td colspan="7" class="empty">No applications found.</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="empty">No applications found.</td></tr>';
             return;
           }
 
@@ -91,15 +97,22 @@
               <td>${escapeHtml(application.company || '')}</td>
               <td>${escapeHtml(application.appMethod || '')}</td>
               <td>${escapeHtml(application.location || '')}</td>
+              <td>${escapeHtml(application.contact || '')}</td>
               <td>${statusCell(application.interviewed)}</td>
               <td>${statusCell(application.advanced)}</td>
             </tr>
           `).join('');
         } catch (error) {
-          body.innerHTML = '<tr><td colspan="7" class="empty">Could not load application data from the local server.</td></tr>';
+          body.innerHTML = '<tr><td colspan="8" class="empty">Could not load application data from the local server.</td></tr>';
           console.error(error);
         }
       }
+
+      const applicationModal = document.getElementById('application-modal');
+      document.getElementById('add-application-button').addEventListener('click', () => {
+        applicationModal.show();
+      });
+      applicationModal.addEventListener('application-saved', loadApplications);
 
       loadApplications();
     </script>
