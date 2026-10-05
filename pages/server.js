@@ -5,10 +5,13 @@ const path = require('node:path');
 const port = Number(process.env.PORT || 3000);
 const resultsPath = path.join(__dirname, '..', 'data', 'search-results.json');
 const applicationsPath = path.join(__dirname, '..', 'data', 'jobs-applied.json');
+const blacklistPath = path.join(__dirname, '..', 'data', 'blacklist.json');
+const blacklistReasonsPath = path.join(__dirname, '..', 'data', 'blacklist-reasons.json');
 const pagePath = path.join(__dirname, 'results.html');
 const applicationsPagePath = path.join(__dirname, 'apps.html');
 const stylesheetPath = path.join(__dirname, 'styles.css');
 const applicationModalPath = path.join(__dirname, 'application-modal.js');
+const blacklistModalPath = path.join(__dirname, 'blacklist-modal.js');
 
 function sendJson(response, status, data) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -41,6 +44,30 @@ function isIsoDate(value) {
 
   const date = new Date(`${value}T00:00:00.000Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function currentDate() {
+  const date = new Date();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+async function loadBlacklistReasons() {
+  try {
+    const reasons = JSON.parse(await fs.readFile(blacklistReasonsPath, 'utf8'));
+    if (!Array.isArray(reasons)) {
+      throw new Error('Blacklist reasons must be a JSON array');
+    }
+
+    const validReasons = reasons.filter((reason) => typeof reason === 'string' && reason.trim());
+    return validReasons.length ? validReasons : ['Other'];
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return ['Other'];
+    }
+    throw error;
+  }
 }
 
 const server = http.createServer(async (request, response) => {
@@ -76,6 +103,13 @@ const server = http.createServer(async (request, response) => {
 
     if (url.pathname === '/application-modal.js' && request.method === 'GET') {
       const script = await fs.readFile(applicationModalPath);
+      response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
+      response.end(script);
+      return;
+    }
+
+    if (url.pathname === '/blacklist-modal.js' && request.method === 'GET') {
+      const script = await fs.readFile(blacklistModalPath);
       response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
       response.end(script);
       return;
@@ -144,6 +178,54 @@ const server = http.createServer(async (request, response) => {
         throw new Error('Applied jobs must be a JSON array');
       }
       sendJson(response, 200, applications);
+      return;
+    }
+
+    if (url.pathname === '/api/blacklist/reasons') {
+      if (request.method !== 'GET') {
+        sendJson(response, 405, { error: 'Method not allowed' });
+        return;
+      }
+
+      sendJson(response, 200, await loadBlacklistReasons());
+      return;
+    }
+
+    if (url.pathname === '/api/blacklist') {
+      if (request.method !== 'POST') {
+        sendJson(response, 405, { error: 'Method not allowed' });
+        return;
+      }
+
+      const body = await readRequestJson(request);
+      const validFields = ['company', 'title', 'location'];
+      if (
+        !body || typeof body !== 'object' || Array.isArray(body) ||
+        !validFields.includes(body.field) ||
+        typeof body.value !== 'string' || !body.value.trim() ||
+        typeof body.reason !== 'string' || !body.reason.trim()
+      ) {
+        sendJson(response, 400, { error: 'Field, value, and reason are required' });
+        return;
+      }
+
+      const entries = JSON.parse(await fs.readFile(blacklistPath, 'utf8'));
+      if (!Array.isArray(entries)) {
+        throw new Error('Blacklist data must be a JSON array');
+      }
+
+      const entry = {
+        value: body.value.trim(),
+        field: body.field,
+        dateAdded: currentDate(),
+        reason: body.reason.trim(),
+      };
+      entries.push(entry);
+
+      const temporaryPath = `${blacklistPath}.tmp`;
+      await fs.writeFile(temporaryPath, `${JSON.stringify(entries, null, 2)}\n`);
+      await fs.rename(temporaryPath, blacklistPath);
+      sendJson(response, 201, entry);
       return;
     }
 
