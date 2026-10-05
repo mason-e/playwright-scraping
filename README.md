@@ -16,4 +16,4 @@ After running the scripts, start the local results server:
 
 `npm start`
 
-Then open http://localhost:3000. The server provides the results in a clean format with links.
+Then open http://localhost:3000 for search results or http://localhost:3000/apps.html for submitted applications. The applications page reads `data/jobs-applied.json`; the era files are not loaded.
