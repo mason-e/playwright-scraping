@@ -1,6 +1,7 @@
 const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 
 const port = Number(process.env.PORT || 3000);
 const resultsPath = path.join(__dirname, '..', 'data', 'search-results.json');
@@ -31,10 +32,6 @@ async function readRequestJson(request) {
   }
 
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-}
-
-function jobKey(job) {
-  return `${job.title || ''}|${job.company || ''}|${job.url || ''}`;
 }
 
 function isIsoDate(value) {
@@ -147,6 +144,7 @@ const server = http.createServer(async (request, response) => {
         }
 
         const application = {
+          id: randomUUID(),
           company: body.company.trim(),
           title: body.title.trim(),
           appDate: body.appDate,
@@ -236,8 +234,8 @@ const server = http.createServer(async (request, response) => {
       }
 
       const body = await readRequestJson(request);
-      if (!body || !Array.isArray(body.keys) || !body.keys.every((key) => typeof key === 'string')) {
-        sendJson(response, 400, { error: 'Expected an array of job keys' });
+      if (!body || !Array.isArray(body.ids) || !body.ids.every((id) => typeof id === 'string')) {
+        sendJson(response, 400, { error: 'Expected an array of job IDs' });
         return;
       }
 
@@ -246,10 +244,10 @@ const server = http.createServer(async (request, response) => {
         throw new Error('Search results must be a JSON array');
       }
 
-      const keys = new Set(body.keys);
+      const ids = new Set(body.ids);
       let updated = 0;
       for (const job of jobs) {
-        if (keys.has(jobKey(job)) && job.isRead !== true) {
+        if (ids.has(job.id) && job.isRead !== true) {
           job.isRead = true;
           updated += 1;
         }
