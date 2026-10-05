@@ -16,4 +16,4 @@ After running the scripts, start the local results server:
 
 `npm start`
 
-Then open http://localhost:3000 for search results or http://localhost:3000/apps.html for submitted applications. The applications page reads `data/jobs-applied.json`; the era files are not loaded.
+Then open http://localhost:3000. It has a page for viewing scraped results and a page for viewing submitted applications. The search blacklist and applications can be updated from these pages.
