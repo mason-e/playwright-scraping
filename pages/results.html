@@ -26,12 +26,15 @@
             <th>Company</th>
             <th>Location</th>
             <th>Link</th>
+            <th>Application</th>
           </tr>
         </thead>
         <tbody id="jobs-body"></tbody>
       </table>
     </div>
+    <application-modal id="application-modal"></application-modal>
 
+    <script src="/application-modal.js" defer></script>
     <script>
       let jobs = [];
       let showAll = false;
@@ -77,6 +80,13 @@
         return `${job.title || ''}|${job.company || ''}|${job.url || ''}`;
       }
 
+      function localDate() {
+        const today = new Date();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${today.getFullYear()}-${month}-${day}`;
+      }
+
       function getVisibleJobs() {
         const visibleJobs = showAll ? jobs : jobs.filter((job) => job.isRead === false);
         return [...visibleJobs].sort((a, b) => {
@@ -98,7 +108,7 @@
         const sortedJobs = getVisibleJobs();
 
         if (!sortedJobs.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty">No jobs found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="empty">No jobs found.</td></tr>';
           updateSelectAll(sortedJobs);
           return;
         }
@@ -132,6 +142,9 @@
                     ${favicon ? `<img class="site-favicon" src="${favicon}" alt="" decoding="async" onerror="this.hidden = true" />` : ''}
                   </a>
                 </td>
+                <td class="application-action">
+                  <button class="filter-button application-add-button" type="button" data-job-key="${escapeHtml(key)}" aria-label="Add application for ${title}">Add</button>
+                </td>
               </tr>
             `;
           })
@@ -146,6 +159,25 @@
               selectedJobs.delete(target.dataset.jobKey);
             }
             updateSelectAll(sortedJobs);
+          });
+        });
+        tbody.querySelectorAll('.application-add-button').forEach((button) => {
+          button.addEventListener('click', () => {
+            const job = jobs.find((item) => jobKey(item) === button.dataset.jobKey);
+            if (!job) {
+              return;
+            }
+
+            document.getElementById('application-modal').show({
+              company: job.company || '',
+              title: job.title || '',
+              appDate: localDate(),
+              appMethod: '',
+              location: job.location || '',
+              contact: '',
+              interviewed: false,
+              advanced: false,
+            });
           });
         });
         updateSelectAll(sortedJobs);
@@ -210,7 +242,7 @@
           const body = document.getElementById('jobs-body');
           body.innerHTML = `
             <tr>
-              <td colspan="5" class="empty">
+              <td colspan="6" class="empty">
                 Could not load jobs from the local server API.
               </td>
             </tr>

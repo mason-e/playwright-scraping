@@ -8,6 +8,7 @@ const applicationsPath = path.join(__dirname, '..', 'data', 'jobs-applied.json')
 const pagePath = path.join(__dirname, 'results.html');
 const applicationsPagePath = path.join(__dirname, 'apps.html');
 const stylesheetPath = path.join(__dirname, 'styles.css');
+const applicationModalPath = path.join(__dirname, 'application-modal.js');
 
 function sendJson(response, status, data) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -31,6 +32,15 @@ async function readRequestJson(request) {
 
 function jobKey(job) {
   return `${job.title || ''}|${job.company || ''}|${job.url || ''}`;
+}
+
+function isIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 const server = http.createServer(async (request, response) => {
@@ -64,6 +74,13 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === '/application-modal.js' && request.method === 'GET') {
+      const script = await fs.readFile(applicationModalPath);
+      response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
+      response.end(script);
+      return;
+    }
+
     if (url.pathname === '/api/jobs') {
       if (request.method !== 'GET') {
         sendJson(response, 405, { error: 'Method not allowed' });
@@ -76,6 +93,47 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (url.pathname === '/api/applications') {
+      if (request.method === 'POST') {
+        const body = await readRequestJson(request);
+        const requiredFields = ['company', 'title', 'appDate', 'appMethod', 'location'];
+        if (
+          !body || typeof body !== 'object' || Array.isArray(body) ||
+          requiredFields.some((field) => typeof body[field] !== 'string' || !body[field].trim()) ||
+          !isIsoDate(body.appDate) ||
+          !['interviewed', 'advanced'].every((field) => typeof body[field] === 'boolean') ||
+          (body.contact !== undefined && typeof body.contact !== 'string')
+        ) {
+          sendJson(response, 400, { error: 'Invalid application record' });
+          return;
+        }
+
+        const applications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
+        if (!Array.isArray(applications)) {
+          throw new Error('Applied jobs must be a JSON array');
+        }
+
+        const application = {
+          company: body.company.trim(),
+          title: body.title.trim(),
+          appDate: body.appDate,
+          appMethod: body.appMethod.trim(),
+          location: body.location.trim(),
+          interviewed: body.interviewed,
+          advanced: body.advanced,
+        };
+        const contact = (body.contact || '').trim();
+        if (contact) {
+          application.contact = contact;
+        }
+        applications.push(application);
+
+        const temporaryPath = `${applicationsPath}.tmp`;
+        await fs.writeFile(temporaryPath, `${JSON.stringify(applications, null, 4)}\n`);
+        await fs.rename(temporaryPath, applicationsPath);
+        sendJson(response, 201, application);
+        return;
+      }
+
       if (request.method !== 'GET') {
         sendJson(response, 405, { error: 'Method not allowed' });
         return;
