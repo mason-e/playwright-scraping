@@ -50,6 +50,69 @@ function currentDate() {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+function normalizeCompanyKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function buildRecentApplicationMap(applications, daysWindow = 180) {
+  const recentByCompany = new Map();
+
+  if (!Array.isArray(applications)) {
+    return recentByCompany;
+  }
+
+  const cutoff = Date.now() - (daysWindow * 24 * 60 * 60 * 1000);
+
+  for (const application of applications) {
+    const companyName = String(application.company || '').trim();
+    const companyKey = normalizeCompanyKey(companyName);
+    if (!companyKey) {
+      continue;
+    }
+
+    const appDate = application.appDate || application.date;
+    const dateMs = new Date(appDate).getTime();
+    if (!appDate || Number.isNaN(dateMs) || dateMs < cutoff) {
+      continue;
+    }
+
+    const record = {
+      company: companyName,
+      appDate,
+      title: String(application.title || ''),
+      appMethod: String(application.appMethod || ''),
+      source: String(application.source || ''),
+    };
+
+    const current = recentByCompany.get(companyKey);
+    if (!current || new Date(record.appDate).getTime() > new Date(current.appDate).getTime()) {
+      recentByCompany.set(companyKey, record);
+    }
+  }
+
+  return recentByCompany;
+}
+
+function enrichJobsWithRecentApplications(jobs, applications, daysWindow = 45) {
+  if (!Array.isArray(jobs)) {
+    return [];
+  }
+
+  const recentByCompany = buildRecentApplicationMap(applications, daysWindow);
+
+  return jobs.map((job) => {
+    const companyKey = normalizeCompanyKey(job.company);
+    const recentApplication = recentByCompany.get(companyKey) || null;
+    return {
+      ...job,
+      recentApplication,
+    };
+  });
+}
+
 async function loadBlacklistReasons() {
   try {
     const reasons = JSON.parse(await fs.readFile(blacklistReasonsPath, 'utf8'));
@@ -118,7 +181,24 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
-      const jobs = JSON.parse(await fs.readFile(resultsPath, 'utf8'));
+      let jobs = JSON.parse(await fs.readFile(resultsPath, 'utf8'));
+      let applications = [];
+      if (!Array.isArray(jobs)) {
+        throw new Error('Search results must be a JSON array');
+      }
+
+      try {
+        const storedApplications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
+        if (Array.isArray(storedApplications)) {
+          applications = storedApplications;
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+
+      jobs = enrichJobsWithRecentApplications(jobs, applications, 45);
       sendJson(response, 200, jobs);
       return;
     }
@@ -306,6 +386,14 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`Results server listening at http://localhost:${port}`);
-});
+if (require.main === module) {
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`Results server listening at http://localhost:${port}`);
+  });
+}
+
+module.exports = {
+  buildRecentApplicationMap,
+  enrichJobsWithRecentApplications,
+  server,
+};
