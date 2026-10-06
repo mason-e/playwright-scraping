@@ -80,7 +80,14 @@ body {
 
 .toolbar-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.results-count {
+  color: var(--muted);
+  white-space: nowrap;
+  font-size: 14px;
 }
 
 .filter-button {

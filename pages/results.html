@@ -14,6 +14,7 @@
     <div class="toolbar">
       <button id="mark-read-button" class="filter-button" type="button">Mark as Read</button>
       <div class="toolbar-actions">
+        <span id="results-count" class="results-count" aria-live="polite">Viewing 0 of 0 results</span>
         <button id="filter-button" class="filter-button" type="button">Show All</button>
       </div>
     </div>
@@ -126,9 +127,17 @@
         selectAll.indeterminate = selectedCount > 0 && selectedCount < sortedJobs.length;
       }
 
+      function updateResultsCount(sortedJobs) {
+        const resultsCount = document.getElementById('results-count');
+        const total = jobs.length;
+        const visible = sortedJobs.length;
+        resultsCount.textContent = `Viewing ${visible} of ${total} results`;
+      }
+
       function renderJobs(jobs) {
         const tbody = document.getElementById('jobs-body');
         const sortedJobs = getVisibleJobs();
+        updateResultsCount(sortedJobs);
 
         if (!sortedJobs.length) {
           tbody.innerHTML = '<tr><td colspan="7" class="empty">No jobs found.</td></tr>';
