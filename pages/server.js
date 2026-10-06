@@ -1,6 +1,7 @@
 const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 
 const port = Number(process.env.PORT || 3000);
 const resultsPath = path.join(__dirname, '..', 'data', 'search-results.json');
@@ -33,10 +34,6 @@ async function readRequestJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
-function jobKey(job) {
-  return `${job.title || ''}|${job.company || ''}|${job.url || ''}`;
-}
-
 function isIsoDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
@@ -51,6 +48,112 @@ function currentDate() {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function normalizeCompanyKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function buildRecentApplicationMap(applications, daysWindow = 180) {
+  const recentByCompany = new Map();
+
+  if (!Array.isArray(applications)) {
+    return recentByCompany;
+  }
+
+  const cutoff = Date.now() - (daysWindow * 24 * 60 * 60 * 1000);
+
+  for (const application of applications) {
+    const companyName = String(application.company || '').trim();
+    const companyKey = normalizeCompanyKey(companyName);
+    if (!companyKey) {
+      continue;
+    }
+
+    const appDate = application.appDate || application.date;
+    const dateMs = new Date(appDate).getTime();
+    if (!appDate || Number.isNaN(dateMs) || dateMs < cutoff) {
+      continue;
+    }
+
+    const record = {
+      company: companyName,
+      appDate,
+      title: String(application.title || ''),
+      appMethod: String(application.appMethod || ''),
+      source: String(application.source || ''),
+    };
+
+    const current = recentByCompany.get(companyKey);
+    if (!current || new Date(record.appDate).getTime() > new Date(current.appDate).getTime()) {
+      recentByCompany.set(companyKey, record);
+    }
+  }
+
+  return recentByCompany;
+}
+
+function enrichJobsWithRecentApplications(jobs, applications, daysWindow = 45) {
+  if (!Array.isArray(jobs)) {
+    return [];
+  }
+
+  const recentByCompany = buildRecentApplicationMap(applications, daysWindow);
+
+  return jobs.map((job) => {
+    const companyKey = normalizeCompanyKey(job.company);
+    const recentApplication = recentByCompany.get(companyKey) || null;
+    return {
+      ...job,
+      recentApplication,
+    };
+  });
+}
+
+function updateApplicationRecord(applications, applicationId, updates) {
+  if (!Array.isArray(applications)) {
+    throw new TypeError('Applications must be an array');
+  }
+
+  const application = applications.find((candidate) => candidate.id === applicationId);
+  if (!application) {
+    throw new Error('Application not found');
+  }
+
+  if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
+    throw new TypeError('Updates must be an object');
+  }
+
+  const allowedFields = new Set(['contact', 'interviewed', 'advanced']);
+  for (const [field, value] of Object.entries(updates)) {
+    if (!allowedFields.has(field)) {
+      throw new Error(`Unsupported application field: ${field}`);
+    }
+
+    if (field === 'interviewed' || field === 'advanced') {
+      if (typeof value !== 'boolean') {
+        throw new TypeError(`${field} must be a boolean`);
+      }
+      application[field] = value;
+      continue;
+    }
+
+    if (typeof value !== 'string') {
+      throw new TypeError('contact must be a string');
+    }
+
+    const trimmed = value.trim();
+    if (trimmed) {
+      application.contact = trimmed;
+    } else {
+      delete application.contact;
+    }
+  }
+
+  return applications;
 }
 
 async function loadBlacklistReasons() {
@@ -121,7 +224,24 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
-      const jobs = JSON.parse(await fs.readFile(resultsPath, 'utf8'));
+      let jobs = JSON.parse(await fs.readFile(resultsPath, 'utf8'));
+      let applications = [];
+      if (!Array.isArray(jobs)) {
+        throw new Error('Search results must be a JSON array');
+      }
+
+      try {
+        const storedApplications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
+        if (Array.isArray(storedApplications)) {
+          applications = storedApplications;
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+
+      jobs = enrichJobsWithRecentApplications(jobs, applications, 45);
       sendJson(response, 200, jobs);
       return;
     }
@@ -147,6 +267,7 @@ const server = http.createServer(async (request, response) => {
         }
 
         const application = {
+          id: randomUUID(),
           company: body.company.trim(),
           title: body.title.trim(),
           appDate: body.appDate,
@@ -173,11 +294,79 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
+      let applications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
+      if (!Array.isArray(applications)) {
+        throw new Error('Applied jobs must be a JSON array');
+      }
+
+      const searchFields = ['company', 'title', 'appMethod', 'location', 'contact'];
+      const statusFields = ['interviewed', 'advanced'];
+      const requestedField = url.searchParams.get('field');
+      if (requestedField && !searchFields.includes(requestedField)) {
+        sendJson(response, 400, { error: 'Unsupported application search field' });
+        return;
+      }
+
+      const query = (url.searchParams.get('q') || '').trim().toLowerCase();
+      const textFilters = searchFields
+        .map((field) => [field, (url.searchParams.get(field) || '').trim().toLowerCase()])
+        .filter(([, value]) => value);
+      const statusFilters = statusFields
+        .filter((field) => url.searchParams.has(field))
+        .map((field) => [field, url.searchParams.get(field).toLowerCase()]);
+
+      if (statusFilters.some(([, value]) => value !== 'true' && value !== 'false')) {
+        sendJson(response, 400, { error: 'Status filters must be true or false' });
+        return;
+      }
+
+      applications = applications.filter((application) => {
+        const queryMatches = !query || (requestedField
+          ? String(application[requestedField] ?? '').toLowerCase().includes(query)
+          : searchFields.some((field) => String(application[field] ?? '').toLowerCase().includes(query)));
+        const textFiltersMatch = textFilters.every(([field, value]) =>
+          String(application[field] ?? '').toLowerCase().includes(value)
+        );
+        const statusFiltersMatch = statusFilters.every(([field, value]) =>
+          String(application[field]).toLowerCase() === value
+        );
+        return queryMatches && textFiltersMatch && statusFiltersMatch;
+      });
+      sendJson(response, 200, applications);
+      return;
+    }
+
+    if (url.pathname.startsWith('/api/applications/')) {
+      const applicationId = url.pathname.slice('/api/applications/'.length);
+      if (!applicationId || request.method !== 'PATCH') {
+        sendJson(response, 405, { error: 'Method not allowed' });
+        return;
+      }
+
+      const body = await readRequestJson(request);
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        sendJson(response, 400, { error: 'Expected an object of updates' });
+        return;
+      }
+
       const applications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
       if (!Array.isArray(applications)) {
         throw new Error('Applied jobs must be a JSON array');
       }
-      sendJson(response, 200, applications);
+
+      try {
+        updateApplicationRecord(applications, applicationId, body);
+      } catch (error) {
+        sendJson(response, 400, { error: error.message || 'Invalid update' });
+        return;
+      }
+
+      const temporaryPath = `${applicationsPath}.tmp`;
+      await fs.writeFile(temporaryPath, `${JSON.stringify(applications, null, 4)}\n`);
+      await fs.rename(temporaryPath, applicationsPath);
+
+      const updated = applications.find((application) => application.id === applicationId);
+      sendJson(response, 200, updated || { id: applicationId });
       return;
     }
 
@@ -236,8 +425,8 @@ const server = http.createServer(async (request, response) => {
       }
 
       const body = await readRequestJson(request);
-      if (!body || !Array.isArray(body.keys) || !body.keys.every((key) => typeof key === 'string')) {
-        sendJson(response, 400, { error: 'Expected an array of job keys' });
+      if (!body || !Array.isArray(body.ids) || !body.ids.every((id) => typeof id === 'string')) {
+        sendJson(response, 400, { error: 'Expected an array of job IDs' });
         return;
       }
 
@@ -246,10 +435,10 @@ const server = http.createServer(async (request, response) => {
         throw new Error('Search results must be a JSON array');
       }
 
-      const keys = new Set(body.keys);
+      const ids = new Set(body.ids);
       let updated = 0;
       for (const job of jobs) {
-        if (keys.has(jobKey(job)) && job.isRead !== true) {
+        if (ids.has(job.id) && job.isRead !== true) {
           job.isRead = true;
           updated += 1;
         }
@@ -274,6 +463,15 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`Results server listening at http://localhost:${port}`);
-});
+if (require.main === module) {
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`Results server listening at http://localhost:${port}`);
+  });
+}
+
+module.exports = {
+  buildRecentApplicationMap,
+  enrichJobsWithRecentApplications,
+  updateApplicationRecord,
+  server,
+};

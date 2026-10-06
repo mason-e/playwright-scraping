@@ -14,6 +14,7 @@
     <div class="toolbar">
       <button id="mark-read-button" class="filter-button" type="button">Mark as Read</button>
       <div class="toolbar-actions">
+        <span id="results-count" class="results-count" aria-live="polite">Viewing 0 of 0 results</span>
         <button id="filter-button" class="filter-button" type="button">Show All</button>
       </div>
     </div>
@@ -79,8 +80,8 @@
         }
       }
 
-      function jobKey(job) {
-        return `${job.title || ''}|${job.company || ''}|${job.url || ''}`;
+      function jobId(job) {
+        return job.id;
       }
 
       function localDate() {
@@ -88,6 +89,26 @@
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
         return `${today.getFullYear()}-${month}-${day}`;
+      }
+
+      function formatRelativeDate(rawDate) {
+        if (!rawDate) {
+          return 'Recent';
+        }
+
+        const date = new Date(rawDate);
+        if (Number.isNaN(date.getTime())) {
+          return 'Recent';
+        }
+
+        const diffDays = Math.max(0, Math.round((Date.now() - date.getTime()) / 86400000));
+        if (diffDays === 0) {
+          return 'Today';
+        }
+        if (diffDays === 1) {
+          return '1d ago';
+        }
+        return `${diffDays}d ago`;
       }
 
       function getVisibleJobs() {
@@ -101,14 +122,22 @@
 
       function updateSelectAll(sortedJobs) {
         const selectAll = document.getElementById('select-all');
-        const selectedCount = sortedJobs.filter((job) => selectedJobs.has(jobKey(job))).length;
+        const selectedCount = sortedJobs.filter((job) => selectedJobs.has(jobId(job))).length;
         selectAll.checked = sortedJobs.length > 0 && selectedCount === sortedJobs.length;
         selectAll.indeterminate = selectedCount > 0 && selectedCount < sortedJobs.length;
+      }
+
+      function updateResultsCount(sortedJobs) {
+        const resultsCount = document.getElementById('results-count');
+        const total = jobs.length;
+        const visible = sortedJobs.length;
+        resultsCount.textContent = `Viewing ${visible} of ${total} results`;
       }
 
       function renderJobs(jobs) {
         const tbody = document.getElementById('jobs-body');
         const sortedJobs = getVisibleJobs();
+        updateResultsCount(sortedJobs);
 
         if (!sortedJobs.length) {
           tbody.innerHTML = '<tr><td colspan="7" class="empty">No jobs found.</td></tr>';
@@ -123,13 +152,13 @@
             const location = escapeHtml(job.location || '');
             const link = resolveJobUrl(job);
             const favicon = resolveFaviconUrl(link);
-            const rowClass = job.isRead ? 'read' : '';
-            const key = jobKey(job);
-            const checked = selectedJobs.has(key) ? ' checked' : '';
+            const rowClass = [job.isRead ? 'read' : '', job.recentApplication ? 'recent-company' : ''].filter(Boolean).join(' ');
+            const id = jobId(job);
+            const checked = selectedJobs.has(id) ? ' checked' : '';
 
             return `
               <tr class="${rowClass}">
-                <td class="select-column"><input class="select-checkbox job-checkbox" type="checkbox" data-job-key="${escapeHtml(key)}"${checked} aria-label="Select ${title}" /></td>
+                <td class="select-column"><input class="select-checkbox job-checkbox" type="checkbox" data-job-id="${escapeHtml(id)}"${checked} aria-label="Select ${title}" /></td>
                 <td class="title">${title}</td>
                 <td>${company}</td>
                 <td>${location}</td>
@@ -146,10 +175,10 @@
                   </a>
                 </td>
                 <td class="application-action">
-                  <button class="filter-button application-add-button" type="button" data-job-key="${escapeHtml(key)}" aria-label="Add application for ${title}">Add</button>
+                  <button class="filter-button application-add-button" type="button" data-job-id="${escapeHtml(id)}" aria-label="Add application for ${title}">Add</button>
                 </td>
                 <td class="application-action">
-                  <button class="filter-button blacklist-add-button" type="button" data-job-key="${escapeHtml(key)}" aria-label="Add ${title} to blacklist">Add</button>
+                  <button class="filter-button blacklist-add-button" type="button" data-job-id="${escapeHtml(id)}" aria-label="Add ${title} to blacklist">Add</button>
                 </td>
               </tr>
             `;
@@ -160,16 +189,16 @@
           checkbox.addEventListener('change', (event) => {
             const target = event.target;
             if (target.checked) {
-              selectedJobs.add(target.dataset.jobKey);
+              selectedJobs.add(target.dataset.jobId);
             } else {
-              selectedJobs.delete(target.dataset.jobKey);
+              selectedJobs.delete(target.dataset.jobId);
             }
             updateSelectAll(sortedJobs);
           });
         });
         tbody.querySelectorAll('.application-add-button').forEach((button) => {
           button.addEventListener('click', () => {
-            const job = jobs.find((item) => jobKey(item) === button.dataset.jobKey);
+            const job = jobs.find((item) => jobId(item) === button.dataset.jobId);
             if (!job) {
               return;
             }
@@ -188,7 +217,7 @@
         });
         tbody.querySelectorAll('.blacklist-add-button').forEach((button) => {
           button.addEventListener('click', () => {
-            const job = jobs.find((item) => jobKey(item) === button.dataset.jobKey);
+            const job = jobs.find((item) => jobId(item) === button.dataset.jobId);
             if (!job) {
               return;
             }
@@ -206,11 +235,11 @@
       document.getElementById('select-all').addEventListener('change', (event) => {
         const checked = event.target.checked;
         getVisibleJobs().forEach((job) => {
-          const key = jobKey(job);
+          const id = jobId(job);
           if (checked) {
-            selectedJobs.add(key);
+            selectedJobs.add(id);
           } else {
-            selectedJobs.delete(key);
+            selectedJobs.delete(id);
           }
         });
         renderJobs(jobs);
@@ -218,8 +247,8 @@
 
       document.getElementById('mark-read-button').addEventListener('click', async (event) => {
         const button = event.currentTarget;
-        const selectedKeys = [...selectedJobs];
-        if (!selectedKeys.length) {
+        const selectedIds = [...selectedJobs];
+        if (!selectedIds.length) {
           return;
         }
 
@@ -228,16 +257,16 @@
           const response = await fetch('/api/jobs/read', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keys: selectedKeys }),
+            body: JSON.stringify({ ids: selectedIds }),
           });
           if (!response.ok) {
             throw new Error(`Failed to mark jobs as read: ${response.status}`);
           }
 
           jobs.forEach((job) => {
-            if (selectedJobs.has(jobKey(job))) {
+            if (selectedJobs.has(jobId(job))) {
               job.isRead = true;
-              selectedJobs.delete(jobKey(job));
+              selectedJobs.delete(jobId(job));
             }
           });
           renderJobs(jobs);
