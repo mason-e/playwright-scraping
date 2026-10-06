@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
+import { randomUUID } from 'node:crypto';
 import path from 'path';
 import { Locator, Page } from '@playwright/test';
 import { BlacklistMap, isBlacklisted } from './blacklist';
@@ -34,6 +35,7 @@ export async function collectJobRecords(
         const url = await locators.url(row).first().getAttribute('href');
 
         const record = {
+            id: randomUUID(),
             title: title?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
             company: company?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
             location: location?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
