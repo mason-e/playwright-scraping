@@ -67,12 +67,6 @@
                 <form data-filter-form="location"><label>Location<input type="search" data-filter-value="location" placeholder="Contains..." /></label><div class="filter-popover-actions"><button class="filter-icon-button" type="button" data-dismiss-filter="location" aria-label="Dismiss Location filter" title="Dismiss"><span aria-hidden="true">&times;</span></button><button class="filter-icon-button apply" type="submit" aria-label="Apply Location filter" title="Apply"><span aria-hidden="true">&#10003;</span></button></div></form>
               </div>
             </th>
-            <th data-filter-column="contact" class="filter-align-right">
-              <div class="column-heading"><span>Contact</span><button class="column-filter-toggle" type="button" data-open-filter="contact" aria-label="Filter Contact" title="Filter Contact" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg></button></div>
-              <div class="column-filter-popover align-right" data-filter-popover="contact" hidden>
-                <form data-filter-form="contact"><label>Contact<input type="search" data-filter-value="contact" placeholder="Contains..." /></label><div class="filter-popover-actions"><button class="filter-icon-button" type="button" data-dismiss-filter="contact" aria-label="Dismiss Contact filter" title="Dismiss"><span aria-hidden="true">&times;</span></button><button class="filter-icon-button apply" type="submit" aria-label="Apply Contact filter" title="Apply"><span aria-hidden="true">&#10003;</span></button></div></form>
-              </div>
-            </th>
             <th data-filter-column="interviewed" class="filter-align-right">
               <div class="column-heading"><span>Interviewed</span><button class="column-filter-toggle" type="button" data-open-filter="interviewed" aria-label="Filter Interviewed" title="Filter Interviewed" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.5 5v4l-3 1V8L2 3Z" /></svg></button></div>
               <div class="column-filter-popover align-right" data-filter-popover="interviewed" hidden>
@@ -88,7 +82,7 @@
           </tr>
         </thead>
         <tbody id="applications-body">
-          <tr><td colspan="8" class="empty">Loading applications...</td></tr>
+          <tr><td colspan="7" class="empty">Loading applications...</td></tr>
         </tbody>
       </table>
     </main>
@@ -195,7 +189,7 @@
             : `${applications.length} applications`;
 
           if (!applications.length) {
-            body.innerHTML = `<tr><td colspan="8" class="empty">${hasActiveFilters() ? 'No matching applications found.' : 'No applications found.'}</td></tr>`;
+            body.innerHTML = `<tr><td colspan="7" class="empty">${hasActiveFilters() ? 'No matching applications found.' : 'No applications found.'}</td></tr>`;
             return;
           }
 
@@ -206,13 +200,57 @@
               <td class="title">${escapeHtml(application.title || '')}</td>
               <td>${escapeHtml(application.appMethod || '')}</td>
               <td>${escapeHtml(application.location || '')}</td>
-              <td>${escapeHtml(application.contact || '')}</td>
-              <td>${statusCell(application.interviewed)}</td>
-              <td>${statusCell(application.advanced)}</td>
+              <td>
+                <button
+                  type="button"
+                  class="status-toggle ${application.interviewed ? 'is-yes' : 'is-no'}"
+                  data-application-id="${escapeHtml(application.id || '')}"
+                  data-field="interviewed"
+                  data-current-value="${application.interviewed ? 'true' : 'false'}"
+                >
+                  ${application.interviewed ? 'Yes' : 'No'}
+                </button>
+              </td>
+              <td>
+                <button
+                  type="button"
+                  class="status-toggle ${application.advanced ? 'is-yes' : 'is-no'}"
+                  data-application-id="${escapeHtml(application.id || '')}"
+                  data-field="advanced"
+                  data-current-value="${application.advanced ? 'true' : 'false'}"
+                >
+                  ${application.advanced ? 'Yes' : 'No'}
+                </button>
+              </td>
             </tr>
           `).join('');
+
+          document.querySelectorAll('.status-toggle').forEach((button) => {
+            button.addEventListener('click', async () => {
+              const applicationId = button.dataset.applicationId;
+              const field = button.dataset.field;
+              const nextValue = button.dataset.currentValue !== 'true';
+
+              try {
+                const response = await fetch(`/api/applications/${encodeURIComponent(applicationId)}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ [field]: nextValue }),
+                });
+
+                if (!response.ok) {
+                  const result = await response.json().catch(() => ({}));
+                  throw new Error(result.error || `Update failed: ${response.status}`);
+                }
+
+                await loadApplications();
+              } catch (error) {
+                window.alert(error.message || 'Could not update this application.');
+              }
+            });
+          });
         } catch (error) {
-          body.innerHTML = '<tr><td colspan="8" class="empty">Could not load application data from the local server.</td></tr>';
+          body.innerHTML = '<tr><td colspan="7" class="empty">Could not load application data from the local server.</td></tr>';
           console.error(error);
         }
       }
