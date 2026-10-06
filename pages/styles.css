@@ -327,6 +327,29 @@ td.application-action {
   border-radius: 4px;
 }
 
+.status-toggle {
+  min-width: 60px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-toggle.is-yes {
+  border-color: rgba(134, 239, 172, 0.45);
+  background: rgba(134, 239, 172, 0.12);
+  color: #86efac;
+}
+
+.status-toggle.is-no {
+  border-color: var(--border);
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.05);
+}
+
 .status-yes {
   color: #86efac;
   border-color: rgba(134, 239, 172, 0.35);

@@ -113,6 +113,49 @@ function enrichJobsWithRecentApplications(jobs, applications, daysWindow = 45) {
   });
 }
 
+function updateApplicationRecord(applications, applicationId, updates) {
+  if (!Array.isArray(applications)) {
+    throw new TypeError('Applications must be an array');
+  }
+
+  const application = applications.find((candidate) => candidate.id === applicationId);
+  if (!application) {
+    throw new Error('Application not found');
+  }
+
+  if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
+    throw new TypeError('Updates must be an object');
+  }
+
+  const allowedFields = new Set(['contact', 'interviewed', 'advanced']);
+  for (const [field, value] of Object.entries(updates)) {
+    if (!allowedFields.has(field)) {
+      throw new Error(`Unsupported application field: ${field}`);
+    }
+
+    if (field === 'interviewed' || field === 'advanced') {
+      if (typeof value !== 'boolean') {
+        throw new TypeError(`${field} must be a boolean`);
+      }
+      application[field] = value;
+      continue;
+    }
+
+    if (typeof value !== 'string') {
+      throw new TypeError('contact must be a string');
+    }
+
+    const trimmed = value.trim();
+    if (trimmed) {
+      application.contact = trimmed;
+    } else {
+      delete application.contact;
+    }
+  }
+
+  return applications;
+}
+
 async function loadBlacklistReasons() {
   try {
     const reasons = JSON.parse(await fs.readFile(blacklistReasonsPath, 'utf8'));
@@ -293,6 +336,40 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname.startsWith('/api/applications/')) {
+      const applicationId = url.pathname.slice('/api/applications/'.length);
+      if (!applicationId || request.method !== 'PATCH') {
+        sendJson(response, 405, { error: 'Method not allowed' });
+        return;
+      }
+
+      const body = await readRequestJson(request);
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        sendJson(response, 400, { error: 'Expected an object of updates' });
+        return;
+      }
+
+      const applications = JSON.parse(await fs.readFile(applicationsPath, 'utf8'));
+      if (!Array.isArray(applications)) {
+        throw new Error('Applied jobs must be a JSON array');
+      }
+
+      try {
+        updateApplicationRecord(applications, applicationId, body);
+      } catch (error) {
+        sendJson(response, 400, { error: error.message || 'Invalid update' });
+        return;
+      }
+
+      const temporaryPath = `${applicationsPath}.tmp`;
+      await fs.writeFile(temporaryPath, `${JSON.stringify(applications, null, 4)}\n`);
+      await fs.rename(temporaryPath, applicationsPath);
+
+      const updated = applications.find((application) => application.id === applicationId);
+      sendJson(response, 200, updated || { id: applicationId });
+      return;
+    }
+
     if (url.pathname === '/api/blacklist/reasons') {
       if (request.method !== 'GET') {
         sendJson(response, 405, { error: 'Method not allowed' });
@@ -395,5 +472,6 @@ if (require.main === module) {
 module.exports = {
   buildRecentApplicationMap,
   enrichJobsWithRecentApplications,
+  updateApplicationRecord,
   server,
 };
