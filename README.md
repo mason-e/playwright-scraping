@@ -61,7 +61,7 @@ Check status with `sudo systemctl status job-dashboard` or logs with `journalctl
 
 ### Cron Job
 
-I set up a cron job with `crontab -e`. Like with the server process this assumes the node path, and `/path/to` is wherever you have it clone.
+I set up a cron job with `crontab -e`. Like with the server process this assumes the node path, and `/path/to` is wherever you have it cloned:
 
 ```
 PATH=/usr/bin/node:/usr/local/bin:/usr/bin:/bin
