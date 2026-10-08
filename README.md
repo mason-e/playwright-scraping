@@ -61,4 +61,12 @@ Check status with `sudo systemctl status job-dashboard` or logs with `journalctl
 
 ### Cron Job
 
-TBD
+I set up a cron job with `crontab -e`. Like with the server process this assumes the node path, and `/path/to` is wherever you have it clone.
+
+```
+PATH=/usr/bin/node:/usr/local/bin:/usr/bin:/bin
+SCRAPER=/path/to/playwright-scraping
+0 17 * * 1-5 /bin/bash -c '. "$HOME/.bashrc" && cd "$SCRAPER" && npm run scrape' >> "$SCRAPER/logs/scraper-cron.log" 2>&1
+```
+
+It passes the environment variables that I have set in my `.bahsrc` to the shell to run the scraper, and logs the cron run to the gitignored logs folder. I set it to run M-F at 5 PM, but of course that can be whatever you want.
