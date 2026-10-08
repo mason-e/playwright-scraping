@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node pages/server.js"
+    "start": "node pages/server.js",
+    "scrape": "npx playwright test scripts/linkedin.spec.ts scripts/builtin.spec.ts --workers=1 --reporter=line"
   },
   "keywords": [],
   "author": "",
