@@ -464,7 +464,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 if (require.main === module) {
-  server.listen(port, '127.0.0.1', () => {
+  server.listen(port, '0.0.0.0', () => {
     console.log(`Results server listening at http://localhost:${port}`);
   });
 }
