@@ -66,7 +66,7 @@ I set up a cron job with `crontab -e`. Like with the server process this assumes
 ```
 PATH=/usr/bin/node:/usr/local/bin:/usr/bin:/bin
 SCRAPER=/path/to/playwright-scraping
-0 17 * * 1-5 /bin/bash -c '. "$HOME/.bashrc" && cd "$SCRAPER" && npm run scrape' >> "$SCRAPER/logs/scraper-cron.log" 2>&1
+0 17 * * 1-5 /bin/bash -c '. "$HOME/.bashrc" && cd "$SCRAPER" && npm run scrape'
 ```
 
 It passes the environment variables that I have set in my `.bahsrc` to the shell to run the scraper, and logs the cron run to the gitignored logs folder. I set it to run M-F at 5 PM, but of course that can be whatever you want.
