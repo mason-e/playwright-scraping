@@ -1,0 +1,18 @@
+[
+    {
+        "value": "Principal",
+        "field": "title",
+        "dateAdded": "2026-01-01"
+    },
+    {
+        "value": "Middle of Nowhere",
+        "field": "location",
+        "dateAdded": "2026-01-01"
+    },
+    {
+        "value": "Evil Megacorp",
+        "field": "company",
+        "dateAdded": "2026-01-01",
+        "reason": "Industry"
+    }
+]
