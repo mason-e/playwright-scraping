@@ -154,10 +154,14 @@ class BlacklistModal extends HTMLElement {
     }
     input.setCustomValidity('');
 
-    const reason = this.shadowRoot.querySelector('[data-reason]').value;
-    if (!reason) {
-      this.setStatus('Choose a reason before adding a blacklist entry.', true);
-      return;
+    const payload = { field, value };
+    if (field === 'company') {
+      const reason = this.shadowRoot.querySelector('[data-reason]').value;
+      if (!reason) {
+        this.setStatus('Choose a reason before adding a company to the blacklist.', true);
+        return;
+      }
+      payload.reason = reason;
     }
 
     button.disabled = true;
@@ -166,7 +170,7 @@ class BlacklistModal extends HTMLElement {
       const response = await fetch('/api/blacklist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ field, value, reason }),
+        body: JSON.stringify(payload),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {

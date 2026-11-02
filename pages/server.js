@@ -392,13 +392,22 @@ const server = http.createServer(async (request, response) => {
         !body || typeof body !== 'object' || Array.isArray(body) ||
         !validFields.includes(body.field) ||
         typeof body.value !== 'string' || !body.value.trim() ||
-        typeof body.reason !== 'string' || !body.reason.trim()
+        (body.field === 'company' && (typeof body.reason !== 'string' || !body.reason.trim()))
       ) {
-        sendJson(response, 400, { error: 'Field, value, and reason are required' });
+        sendJson(response, 400, { error: 'Field and value are required; company entries also need a reason' });
         return;
       }
 
-      const entries = JSON.parse(await fs.readFile(blacklistPath, 'utf8'));
+      let entries;
+      try {
+        entries = JSON.parse(await fs.readFile(blacklistPath, 'utf8'));
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+        entries = [];
+      }
+
       if (!Array.isArray(entries)) {
         throw new Error('Blacklist data must be a JSON array');
       }
@@ -407,8 +416,10 @@ const server = http.createServer(async (request, response) => {
         value: body.value.trim(),
         field: body.field,
         dateAdded: currentDate(),
-        reason: body.reason.trim(),
       };
+      if (body.field === 'company') {
+        entry.reason = body.reason.trim();
+      }
       entries.push(entry);
 
       const temporaryPath = `${blacklistPath}.tmp`;
