@@ -13,7 +13,8 @@ export type JobRecordLocators = {
     title: (row: Locator) => Locator;
     company: (row: Locator) => Locator;
     location: (row: Locator) => Locator;
-    url: (row: Locator) => Locator;
+    url?: (row: Locator) => Locator;
+    resolveUrl?: (row: Locator) => Promise<string | undefined> | string | undefined;
     baseUrl: string;
     nextPage: (page: Page) => Locator;
 };
@@ -32,7 +33,7 @@ export async function collectJobRecords(
         const title = await locators.title(row).first().textContent();
         const company = await locators.company(row).first().textContent();
         const location = await locators.location(row).first().textContent();
-        const url = await locators.url(row).first().getAttribute('href');
+        const url = locators.url ? await locators.url(row).first().getAttribute('href') : await locators.resolveUrl?.(row);
 
         const record = {
             id: randomUUID(),
@@ -119,12 +120,14 @@ export async function verifyLocators(page: Page, locators: JobRecordLocators) {
     }
 
     const row = rowLocator.first();
-    const locatorMap = [
+    const locatorMap: Array<[string, Locator]> = [
         ['Title', locators.title(row)],
         ['Company', locators.company(row)],
         ['Location', locators.location(row)],
-        ['URL', locators.url(row)],
-    ] as const;
+    ];
+    if (locators.url) {
+        locatorMap.push(['URL', locators.url(row)]);
+    }
     const missing: string[] = [];
 
     for (const [name, locator] of locatorMap) {

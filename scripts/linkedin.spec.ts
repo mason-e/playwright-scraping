@@ -5,13 +5,17 @@ import { JobSearchRecord } from '../helpers/record-types';
 import { JobRecordLocators, LoadAllResults, pageThroughEnd, saveRecords } from '../helpers/search-results';
 
 const linkedInLocators: JobRecordLocators = {
-  rows: '.display-flex.job-card-container',
-  title: (row) => row.locator('a.job-card-container__link'),
-  company: (row) => row.locator('.artdeco-entity-lockup__subtitle span[dir="ltr"]'),
-  location: (row) => row.locator('.artdeco-entity-lockup__caption li span[dir="ltr"]'),
-  url: (row) => row.locator('a.job-card-container__link'),
+  rows: 'div[componentkey^="job-card-component-ref-"]',
+  title: (row) => row.locator('p.fa4lje.fa4lo2.fa4lis.fa4gm6.fa4ljc.fa4lri.fa4lrm').first(),
+  company: (row) => row.locator('p.fa4lje.fa4lox.fa4lis.fa4goj.fa4ljc.fa4lrh, p.fa4lje.fa4lox.fa4lis.fa4goj.fa4ljc').first(),
+  location: (row) => row.locator('p.fa4lje.fa4lox.fa4lca.fa4lis.fa4gpp.fa4ljc.fa4lrh').first(),
+  resolveUrl: async (row) => {
+    const componentKey = await row.getAttribute('componentkey');
+    const componentId = componentKey?.replace(/^job-card-component-ref-/, '').trim();
+    return componentId ? `https://www.linkedin.com/jobs/view/${componentId}/` : undefined;
+  },
   baseUrl: 'https://www.linkedin.com',
-  nextPage: (page) => page.getByRole('button', { name: 'View next page' }).first(),
+  nextPage: (page) => page.locator('button:has-text("Next")').first(),
 };
 
 async function authenticateLinkedIn(page: Page) {
@@ -34,7 +38,7 @@ async function authenticateLinkedIn(page: Page) {
  * set of cards loads until we get to the end of the page.
  */
 const loadAllLinkedInResults: LoadAllResults = async (page) => {
-  const jobCards = page.locator('.display-flex.job-card-container');
+  const jobCards = page.locator('div[componentkey^="job-card-component-ref-"]');
   const resultsContainer = page.locator('#jobs-search-results-footer');
 
   await jobCards.first().waitFor({ state: 'visible', timeout: 5_000 });
