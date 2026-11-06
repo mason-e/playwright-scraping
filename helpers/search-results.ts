@@ -65,7 +65,7 @@ export async function pageThroughEnd(
         await loadAllResults?.(page);
         count += await collectJobRecords(page, records, blacklist, locators);
         await verifyRecords(records);
-        if (await nextPage.count() === 0) {
+        if (await nextPage.count() === 0 || !(await nextPage.isEnabled())) {
             return;
         }
 

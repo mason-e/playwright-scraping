@@ -5,17 +5,17 @@ import { JobSearchRecord } from '../helpers/record-types';
 import { JobRecordLocators, LoadAllResults, pageThroughEnd, saveRecords } from '../helpers/search-results';
 
 const linkedInLocators: JobRecordLocators = {
-  rows: 'div[componentkey^="job-card-component-ref-"]',
-  title: (row) => row.locator('p.fa4lje.fa4lo2.fa4lis.fa4gm6.fa4ljc.fa4lri.fa4lrm'),
-  company: (row) => row.locator('p.fa4lje.fa4lox.fa4lis.fa4goj.fa4ljc.fa4lrh, p.fa4lje.fa4lox.fa4lis.fa4goj.fa4ljc'),
-  location: (row) => row.locator('p.fa4lje.fa4lox.fa4lca.fa4lis.fa4gpp.fa4ljc.fa4lrh'),
+  rows: 'div[role="button"][componentkey^="job-card-component-ref-"]',
+  title: (row) => row.locator('p[class*="lje"][class*="lo2"][class*="lis"][class*="gm6"][class*="ljc"][class*="lri"][class*="lrm"]'),
+  company: (row) => row.locator('p[class*="lje"][class*="lox"][class*="lis"][class*="goj"][class*="ljc"][class*="lrh"]'),
+  location: (row) => row.locator('p[class*="lje"][class*="lox"][class*="lca"][class*="lis"][class*="gpp"][class*="ljc"][class*="lrh"]'),
   resolveUrl: async (row) => {
     const componentKey = await row.getAttribute('componentkey');
     const componentId = componentKey?.replace(/^job-card-component-ref-/, '').trim();
     return componentId ? `https://www.linkedin.com/jobs/view/${componentId}/` : undefined;
   },
   baseUrl: 'https://www.linkedin.com',
-  nextPage: (page) => page.locator('button:has-text("Next")').first(),
+  nextPage: (page) => page.getByRole('button', { name: 'Next', exact: true }).first(),
 };
 
 async function authenticateLinkedIn(page: Page) {
@@ -38,7 +38,21 @@ async function authenticateLinkedIn(page: Page) {
  * set of cards loads until we get to the end of the page.
  */
 const loadAllLinkedInResults: LoadAllResults = async (page) => {
-  await page.waitForTimeout(1_000);
+  const jobCards = page.locator('div[role="button"][componentkey^="job-card-component-ref-"]');
+
+  await jobCards.first().waitFor({ state: 'visible', timeout: 5_000 });
+
+  let loadedCount = await jobCards.count();
+  for (let i = 0; i < loadedCount; i++) {
+    loadedCount = await jobCards.count();
+    const nextIndex = Math.min(i + 1, loadedCount - 1);
+    const card = jobCards.nth(nextIndex);
+
+    await card.evaluate((element) => {
+      element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    });
+    await page.waitForTimeout(200);
+  }
 };
 
 const records: JobSearchRecord[] = [];
