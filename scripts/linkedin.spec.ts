@@ -6,9 +6,9 @@ import { JobRecordLocators, LoadAllResults, pageThroughEnd, saveRecords } from '
 
 const linkedInLocators: JobRecordLocators = {
   rows: 'div[role="button"][componentkey^="job-card-component-ref-"]',
-  title: (row) => row.locator('p[class*="lje"][class*="lo2"][class*="lis"][class*="gm6"][class*="ljc"][class*="lri"][class*="lrm"]'),
-  company: (row) => row.locator('p[class*="lje"][class*="lox"][class*="lis"][class*="goj"][class*="ljc"][class*="lrh"]'),
-  location: (row) => row.locator('p[class*="lje"][class*="lox"][class*="lca"][class*="lis"][class*="gpp"][class*="ljc"][class*="lrh"]'),
+  title: (row) => row.locator('p[class*="gm6"][class*="ljc"] > span[aria-hidden="true"]'),
+  company: (row) => row.locator('p[class*="goj"][class*="ljc"]'),
+  location: (row) => row.locator('p[class*="lca"][class*="gpp"][class*="ljc"]'),
   resolveUrl: async (row) => {
     const componentKey = await row.getAttribute('componentkey');
     const componentId = componentKey?.replace(/^job-card-component-ref-/, '').trim();
