@@ -1,5 +1,6 @@
 export type JobSearchRecord = {
     id: string;
+    date: string;
     title: string;
     company: string;
     location: string;
