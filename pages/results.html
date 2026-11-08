@@ -12,7 +12,10 @@
       <a href="/apps.html">Applications</a>
     </nav>
     <div class="toolbar">
-      <button id="mark-read-button" class="filter-button" type="button">Mark as Read</button>
+      <div class="toolbar-actions">
+        <button id="mark-read-button" class="filter-button" type="button">Mark as Read</button>
+        <button id="clear-older-button" class="filter-button" type="button">Clear Older</button>
+      </div>
       <div class="toolbar-actions">
         <span id="results-count" class="results-count" aria-live="polite">Viewing 0 of 0 results</span>
         <button id="filter-button" class="filter-button" type="button">Show All</button>
@@ -36,9 +39,11 @@
     </div>
     <application-modal id="application-modal"></application-modal>
     <blacklist-modal id="blacklist-modal"></blacklist-modal>
+    <clear-older-modal id="clear-older-modal"></clear-older-modal>
 
     <script src="/application-modal.js" defer></script>
     <script src="/blacklist-modal.js" defer></script>
+    <script src="/clear-older-modal.js" defer></script>
     <script>
       let jobs = [];
       let showAll = false;
@@ -304,6 +309,13 @@
         showAll = !showAll;
         document.getElementById('filter-button').textContent = showAll ? 'Show Unread' : 'Show All';
         renderJobs(jobs);
+      });
+
+      const clearOlderModal = document.getElementById('clear-older-modal');
+      document.getElementById('clear-older-button').addEventListener('click', () => clearOlderModal.show());
+      clearOlderModal.addEventListener('jobs-cleared', () => {
+        selectedJobs.clear();
+        loadJobs();
       });
 
       loadJobs();

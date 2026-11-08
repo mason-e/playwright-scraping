@@ -1,12 +1,14 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'path';
+import { DateTime } from 'luxon';
 import { Locator, Page } from '@playwright/test';
 import { BlacklistMap, isBlacklisted } from './blacklist';
 import { LocatorContentError, LocatorNotFoundError } from './logging';
 import { JobSearchRecord } from './record-types';
 
 const outputPath = path.resolve('data/search-results.json');
+const today = DateTime.local().toISODate()!;
 
 export type JobRecordLocators = {
     rows: string;
@@ -37,6 +39,7 @@ export async function collectJobRecords(
 
         const record = {
             id: randomUUID(),
+            date: today,
             title: title?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
             company: company?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
             location: location?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
