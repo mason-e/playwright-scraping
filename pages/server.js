@@ -13,6 +13,9 @@ const applicationsPagePath = path.join(__dirname, 'apps.html');
 const stylesheetPath = path.join(__dirname, 'styles.css');
 const applicationModalPath = path.join(__dirname, 'application-modal.js');
 const blacklistModalPath = path.join(__dirname, 'blacklist-modal.js');
+const clearOlderModalPath = path.join(__dirname, 'clear-older-modal.js');
+const keepCountOptions = new Set([1000, 750, 500, 300, 250, 200, 100]);
+const ageOptions = new Set([7, 14, 30, 45, 60]);
 
 function sendJson(response, status, data) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -213,6 +216,13 @@ const server = http.createServer(async (request, response) => {
 
     if (url.pathname === '/blacklist-modal.js' && request.method === 'GET') {
       const script = await fs.readFile(blacklistModalPath);
+      response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
+      response.end(script);
+      return;
+    }
+
+    if (url.pathname === '/clear-older-modal.js' && request.method === 'GET') {
+      const script = await fs.readFile(clearOlderModalPath);
       response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
       response.end(script);
       return;
@@ -462,6 +472,47 @@ const server = http.createServer(async (request, response) => {
       }
 
       sendJson(response, 200, { updated });
+      return;
+    }
+
+    if (url.pathname === '/api/jobs/clear-older') {
+      if (request.method !== 'POST') {
+        sendJson(response, 405, { error: 'Method not allowed' });
+        return;
+      }
+
+      const body = await readRequestJson(request);
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        sendJson(response, 400, { error: 'Invalid cleanup request' });
+        return;
+      }
+
+      const jobs = JSON.parse(await fs.readFile(resultsPath, 'utf8'));
+      if (!Array.isArray(jobs)) {
+        throw new Error('Search results must be a JSON array');
+      }
+
+      let remainingJobs;
+      if (body.mode === 'count' && Number.isInteger(body.count) && keepCountOptions.has(body.count)) {
+        remainingJobs = jobs.slice(-body.count);
+      } else if (body.mode === 'age' && Number.isInteger(body.days) && ageOptions.has(body.days)) {
+        const cutoff = new Date(`${currentDate()}T00:00:00.000Z`);
+        cutoff.setUTCDate(cutoff.getUTCDate() - body.days);
+        const cutoffDate = cutoff.toISOString().slice(0, 10);
+        remainingJobs = jobs.filter((job) => !isIsoDate(job.date) || job.date >= cutoffDate);
+      } else {
+        sendJson(response, 400, { error: 'Invalid cleanup request' });
+        return;
+      }
+
+      const deleted = jobs.length - remainingJobs.length;
+      if (deleted > 0) {
+        const temporaryPath = `${resultsPath}.tmp`;
+        await fs.writeFile(temporaryPath, `${JSON.stringify(remainingJobs, null, 2)}\n`);
+        await fs.rename(temporaryPath, resultsPath);
+      }
+
+      sendJson(response, 200, { deleted, remaining: remainingJobs.length });
       return;
     }
 
