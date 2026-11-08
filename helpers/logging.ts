@@ -21,7 +21,7 @@ export class LocatorContentError extends Error {
   }
 }
 
-export async function logTestResult(testInfo: TestInfo, counts: { total: number; filtered: number; unique: number }) {
+export async function logTestResult(testInfo: TestInfo, counts: { total: number; filtered: number; unique: number; broken: number }) {
   const logInfo: string[] = [];
   const logTime = DateTime.local();
   logInfo.push("======================================");
@@ -32,6 +32,11 @@ export async function logTestResult(testInfo: TestInfo, counts: { total: number;
   logInfo.push(`Number of jobs scraped:            ${counts.total}`);
   logInfo.push(`Number of jobs after blacklist:    ${counts.filtered}`);
   logInfo.push(`Number of unique jobs saved:       ${counts.unique}`);
+
+  if (counts.broken > 0) {
+    logInfo.push(`Failed to find locators or text inside locators ${counts.broken} times.`);
+    logInfo.push(`Broken locator entries are written, but may not match above count due to deduping.`);
+  }
 
   if (testInfo.error) {
     const errorInfo: string[] = [];
