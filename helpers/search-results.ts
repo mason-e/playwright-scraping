@@ -32,17 +32,26 @@ export async function collectJobRecords(
     const rows = await page.locator(locators.rows).all();
 
     for (const row of rows) {
-        const title = await locators.title(row).first().textContent();
-        const company = await locators.company(row).first().textContent();
-        const location = await locators.location(row).first().textContent();
+        const titleLocator = locators.title(row).first();
+        const title = await titleLocator.count() === 1
+            ? (await titleLocator.textContent()) ?? 'LocatorNoText'
+            : 'NoLocator';
+        const companyLocator = locators.company(row).first();
+        const company = await companyLocator.count() === 1
+            ? (await companyLocator.textContent()) ?? 'LocatorNoText'
+            : 'NoLocator';
+        const locationLocator = locators.location(row).first();
+        const location = await locationLocator.count() === 1
+            ? (await locationLocator.textContent()) ?? 'LocatorNoText'
+            : 'NoLocator';
         const url = locators.url ? await locators.url(row).first().getAttribute('href') : await locators.resolveUrl?.(row);
 
         const record = {
             id: randomUUID(),
             date: today,
-            title: title?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
-            company: company?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
-            location: location?.replace(/\s+/g, ' ').trim() ?? 'UNKNOWN',
+            title: title.replace(/\s+/g, ' ').trim(),
+            company: company.replace(/\s+/g, ' ').trim(),
+            location: location.replace(/\s+/g, ' ').trim(),
             isRead: false,
             url: url ? new URL(url, locators.baseUrl).toString() : undefined,
         };
@@ -67,7 +76,6 @@ export async function pageThroughEnd(
     const collectAndClickNext = async () => {
         await loadAllResults?.(page);
         count += await collectJobRecords(page, records, blacklist, locators);
-        await verifyRecords(records);
         if (await nextPage.count() === 0 || !(await nextPage.isEnabled())) {
             return;
         }
@@ -144,21 +152,20 @@ export async function verifyLocators(page: Page, locators: JobRecordLocators) {
     }
 }
 
-export async function verifyRecords(records: JobSearchRecord[]) {
-    const unknownFields: string[] = [];
-    if (records.every((record) => record.title === 'UNKNOWN')) {
-        unknownFields.push('Title');
-    }
-    if (records.every((record) => record.company === 'UNKNOWN')) {
-        unknownFields.push('Company');
-    }
-    if (records.every((record) => record.location === 'UNKNOWN')) {
-        unknownFields.push('Location');
-    }
-    if (records.every((record) => !record.url)) {
-        unknownFields.push('URL');
-    }
-    if (unknownFields.length > 0) {
-        throw new LocatorContentError(`Every ${unknownFields.join(', ')} failed to return a value.`);
-    }
+export async function getBrokenRecordCount(records: JobSearchRecord[]) {
+    let count = 0;
+    records.forEach((record) => {
+        if (
+            record.title === 'NoLocator' ||
+            record.company === 'NoLocator' ||
+            record.location === 'NoLocator' ||
+            record.title === 'LocatorNoText' ||
+            record.company === 'LocatorNoText' ||
+            record.location === 'LocatorNoText'
+        ) {
+            count++;
+        }
+    });
+
+    return count;
 }

@@ -2,7 +2,7 @@ import { Page, test } from '@playwright/test';
 import { loadBlacklist } from '../helpers/blacklist';
 import { logTestResult } from '../helpers/logging';
 import { JobSearchRecord } from '../helpers/record-types';
-import { JobRecordLocators, LoadAllResults, pageThroughEnd, saveRecords } from '../helpers/search-results';
+import { getBrokenRecordCount, JobRecordLocators, LoadAllResults, pageThroughEnd, saveRecords } from '../helpers/search-results';
 
 const linkedInLocators: JobRecordLocators = {
   rows: 'div[role="button"][componentkey^="job-card-component-ref-"]',
@@ -56,7 +56,7 @@ const loadAllLinkedInResults: LoadAllResults = async (page) => {
 };
 
 const records: JobSearchRecord[] = [];
-const counts: { total: number; filtered: number; unique: number } = { total: 0, filtered: 0, unique: 0 };
+const counts: { total: number; filtered: number; unique: number; broken: number; } = { total: 0, filtered: 0, unique: 0, broken: 0 };
 
 test.afterEach(async ({ }, testInfo) => logTestResult(testInfo, counts));
 
@@ -74,6 +74,7 @@ test("scrape linkedin for last day", async ({ page }) => {
   }
 
   counts.filtered = records.length;
+  counts.broken = await getBrokenRecordCount(records);
 
   if (counts.filtered > 0) {
     counts.unique = await saveRecords(records);
