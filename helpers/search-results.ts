@@ -32,18 +32,9 @@ export async function collectJobRecords(
   const rows = await page.locator(locators.rows).all();
 
   for (const row of rows) {
-    const titleLocator = locators.title(row).first();
-    const title = await titleLocator.count() === 1
-      ? (await titleLocator.textContent()) ?? 'LocatorNoText'
-      : 'NoLocator';
-    const companyLocator = locators.company(row).first();
-    const company = await companyLocator.count() === 1
-      ? (await companyLocator.textContent()) ?? 'LocatorNoText'
-      : 'NoLocator';
-    const locationLocator = locators.location(row).first();
-    const location = await locationLocator.count() === 1
-      ? (await locationLocator.textContent()) ?? 'LocatorNoText'
-      : 'NoLocator';
+    const title = await getTextFromLocator(locators.title(row).first());
+    const company = await getTextFromLocator(locators.company(row).first());
+    const location = await getTextFromLocator(locators.location(row).first());
     const url = locators.url ? await locators.url(row).first().getAttribute('href') : await locators.resolveUrl?.(row);
 
     const record = {
@@ -103,6 +94,12 @@ async function readSavedRecords() {
     }
     throw error;
   }
+}
+
+async function getTextFromLocator(locator: Locator) {
+  return await locator.count() === 1
+    ? (await locator.textContent()) ?? 'LocatorNoText'
+    : 'NoLocator';
 }
 
 export async function saveRecords(records: JobSearchRecord[]) {
@@ -169,3 +166,4 @@ export async function getBrokenRecordCount(records: JobSearchRecord[]) {
 
   return count;
 }
+
