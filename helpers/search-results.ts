@@ -72,6 +72,7 @@ export async function pageThroughEnd(
     }
 
     await nextPage.click();
+    await page.waitForSelector(locators.rows, { state: 'visible', timeout: 30_000 });
     await collectAndClickNext();
   };
 
