@@ -15,7 +15,7 @@ const linkedInLocators: JobRecordLocators = {
     return componentId ? `https://www.linkedin.com/jobs/view/${componentId}/` : undefined;
   },
   baseUrl: 'https://www.linkedin.com',
-  nextPage: (page) => page.getByRole('button', { name: 'Next', exact: true }).first(),
+  nextPage: (page) => page.getByRole('button', { name: 'Next', exact: true }).locator(':not([data-testid="pagination-controls-next-button-hidden"])').first(),
 };
 
 async function authenticateLinkedIn(page: Page) {
